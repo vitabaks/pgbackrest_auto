@@ -158,7 +158,9 @@ EXAMPLES:
 
 ```
 
-:bulb: You can use this script to daily (or weekly) automatically check your backups, immediately after the completion of the backup process.
+---
+
+ :bulb: You can use this script to daily (or weekly) automatically check your backups, immediately after the completion of the backup process.
 
 ###### Example of Cron jobs:
 

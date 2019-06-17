@@ -44,7 +44,7 @@ pgbackrest_auto --from=app-db --to=/bkpdata/10/app-db --backup-host=10.128.50.50
 2019-06-17 16:12:22 INFO: Data validation in the database db2 - Successful
 2019-06-17 16:12:22 INFO: Start data validation for database db3
 2019-06-17 16:12:28 INFO: Data validation in the database db3 - Successful
-019-06-17 16:14:08 INFO: Start data validation for database postgres
+2019-06-17 16:14:08 INFO: Start data validation for database postgres
 2019-06-17 16:14:09 INFO: Data validation in the database postgres - Successful
 2019-06-17 16:14:09 INFO: [STEP 7]: Validate for logical database corruption (with amcheck)
 2019-06-17 16:14:09 INFO: Verify the logical consistency of the structure of indexes and heap relations in the database db1

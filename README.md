@@ -234,3 +234,7 @@ Licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
 ## Author
 Vitaliy Kukharik (PostgreSQL DBA) vitabaks@gmail.com
+
+## Feedback, bug-reports, requests, ...
+Are [welcome](https://github.com/vitabaks/pgbackrest_auto/issues)!
+#### Help Wanted! If you noticed a bug or a missing feature or just have an idea of how this project could be enhanced, please feel free to file an issue.

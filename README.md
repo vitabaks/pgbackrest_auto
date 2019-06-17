@@ -2,6 +2,8 @@
 
 This is a simple script to automate the process of restore PostgreSQL databases from backup using [pgbackrest](https://github.com/pgbackrest/pgbackrest). With the possibility **validate for physical and logical database corruption**, and (optional) sending the final report to DBA an e-mail address.
 
+![pgbackrest_auto](./pgbackrest_auto.png)
+
 #### Example
 ```
 pgbackrest_auto --from=app-db --to=/bkpdata/10/app-db --backup-host=10.128.50.50 --pgver=10 --checkdb --clear --report

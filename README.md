@@ -17,7 +17,7 @@ Databases that successfully passed the stage of physical validation additionally
 pgbackrest_auto --from=app-db --to=/bkpdata/10/app-db --backup-host=10.128.50.50 --pgver=10 --checkdb --clear --report
 ```
 ###### script output:
-```ruby
+```
 2019-06-17 15:57:50 INFO: [STEP 1]: Starting
 2019-06-17 15:57:50 INFO: Starting. Restore Type: Full PostgreSQL Restore FROM Stanza: app-db ---> TO Directory: /bkpdata/10/app-db
 2019-06-17 15:57:50 INFO: Starting. Restore Settings: immediate

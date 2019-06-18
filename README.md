@@ -7,7 +7,7 @@ This is a simple script to automate the process of restore PostgreSQL databases 
 PostgreSQL has supported page-level checksums since 9.3. **If page checksums are enabled** pgbackrest will [validate](https://pgbackrest.org/configuration.html#section-backup/option-checksum-page) the checksums for every file that is copied during a backup. All page checksums are validated during a full backup and checksums in files that have changed are validated during differential and incremental backups.
 This feature allows page-level corruption to be detected early. 
 
-`pgbackrest_auto` performs **additional advanced checks on your data** after recovery stage. In case of PostgreSQL data restore and recovery, the stage of physical data validation is performed (all data blocks are sequentially read with pg_dump); 
+`pgbackrest_auto` runs **additional advanced checks on your data** after the recovery stage. In case of PostgreSQL data restore and recovery, the stage of physical data validation is performed (all data blocks are sequentially read with pg_dump); 
 Databases that successfully passed the stage of physical validation additionally pass the stage of logical validation using the [amcheck](https://github.com/petergeoghegan/amcheck) extension. Tthe logical integrity of the structure of the B-Tree indexes and tables related to the target index relation is checked (used `bt_index_parent_check` with `heapallindexed` argument is `true`).
 
 ![pgbackrest_auto_scheme](./scheme.png)

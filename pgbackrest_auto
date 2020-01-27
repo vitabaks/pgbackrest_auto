@@ -8,7 +8,7 @@
 # Requirements: local trust for postgres (login by Unix domain socket) in the pg_hba.conf or ".pgpass"
 # Run as user: postgres
 
-ver="1.0"
+ver="1.1"
 
 # variables for function "sendmail()"
 smtp_server="10.128.64.5:25"
@@ -450,8 +450,11 @@ function pg_data_validation(){
 }
 # amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
 function pg_logical_validation(){
-        for db in "${ok_dbArray[@]}"; do
-            if pg_isready 1> /dev/null; then
+    for db in "${ok_dbArray[@]}"; do
+        if pg_isready 1> /dev/null; then
+            if [[ "$PGVER" -ge "11" && "$PGVER" -lt "90" ]]; then
+                ${bin_dir}/psql -p "${port}" -U postgres -d "$db" -tAc "CREATE EXTENSION if not exists amcheck" 1> /dev/null
+            else
                 ${bin_dir}/psql -p "${port}" -U postgres -d "$db" -tAc "CREATE EXTENSION if not exists amcheck_next" 1> /dev/null
                 if [[ $? -eq 0 ]]; then
                     info "Verify the logical consistency of the structure of indexes and heap relations in the database \e[1m$db\e[0m"
@@ -459,13 +462,14 @@ function pg_logical_validation(){
                     for index in $indexes; do
                         # info "\e[90mVerify the logical consistency of the structure of index\e[0m ${index}"
                         ${bin_dir}/psql -p "${port}" -d "$db" -tAc "SELECT bt_index_parent_check('${index}', true)" 1> /dev/null
-                        if [[ $? -ne 0 ]]; then
-                            errmsg "Logical validation for index \e[1m${index}\e[0m ( database \e[1m$db\e[0m ) - \e[91mFailed\e[0m"
-                        fi
+                            if [[ $? -ne 0 ]]; then
+                                errmsg "Logical validation for index \e[1m${index}\e[0m ( database \e[1m$db\e[0m ) - \e[91mFailed\e[0m"
+                            fi
                     done
                 fi
             fi
-        done
+        fi
+    done
 }
 
 # Send report to mail address

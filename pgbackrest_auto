@@ -473,11 +473,10 @@ function pg_logical_validation(){
 }
 
 # Send report to mail address
-host=$(hostname)
 function sendmail(){
     SMTP="${smtp_server}"
     EMAIL="${mail_to}"
-    SUBJECT="PostgreSQL Database Restore Report ( restore: ${FROM} on server: ${host} )"
+    SUBJECT="postgres restore report for '${FROM}' production: `date +\%Y-\%m-\%d` (auto-generated)"
     MAIL_FROM="${mail_from}"
 
     # convert log to html

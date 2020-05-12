@@ -14,7 +14,7 @@ ver="1.2"
 smtp_server="10.128.64.5:25"
 mail_from="backuper@my-domain.ru"
 mail_to="monitoring.dba@my-domain.ru"
-
+attach_report=true  # or 'false'
 
 function errmsg(){
     # Print error message
@@ -480,7 +480,7 @@ function pg_logical_validation(){
 function sendmail(){
     SMTP="${smtp_server}"
     EMAIL="${mail_to}"
-    SUBJECT="postgres restore report for '${FROM}' production: `date +\%Y-\%m-\%d` (auto-generated)"
+    SUBJECT="postgres restore report for '${FROM}' production: $(date +%Y-%m-%d) (auto-generated)"
     MAIL_FROM="${mail_from}"
 
     # convert log to html
@@ -488,7 +488,11 @@ function sendmail(){
     cat "${log}" | ansi2html.sh --bg=dark > "${log}".html
 
     # send mail
-    sendemail -v -o message-content-type=html -o message-file="${log}".html -f "${MAIL_FROM}" -t "${EMAIL}" -u "${SUBJECT}" -s "${SMTP}" -a "${log}".html
+    if [ "$attach_report" = true ]; then
+        sendemail -v -o message-content-type=html -o message-file="${log}".html -f "${MAIL_FROM}" -t "${EMAIL}" -u "${SUBJECT}" -s "${SMTP}" -a "${log}".html
+    else
+        sendemail -v -o message-content-type=html -o message-file="${log}".html -f "${MAIL_FROM}" -t "${EMAIL}" -u "${SUBJECT}" -s "${SMTP}"
+    fi
 }
 
 

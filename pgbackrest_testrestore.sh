@@ -10,7 +10,43 @@
 
 ver="1.3"
 
+# Changes for 1.3
+# - use pg_checksums for checkdb ( requires postgresql-$VER-pg-checksums package )
+# - determine Postgres Version from pgbackrest info
+# - create a new cluster to restore
+# - check for max_locks_per_transaction and max_connections parameter and configure postgresql.conf accordingly before starting the cluster
+# - compare DB and filesystem size before restore
+# - use mail and rely on locally configured mail processing, add mail Parameter
+# - add norestore option to check already existing clusters
+# - add target-action=promote, otherwise create extension fails
+# - error if create extension failes
+# - add an optional amcheck parameter within checkdb
+# - remove fancy colores in log messages
+# - determine Postgres Version from pgbackrest info
+
+# variables for function "sendmail()"
 attach_report=true  # or 'false'
+
+# Send report to mail address
+function sendmail(){
+    if [[ -z ${mail_to} ]]; then
+        errmsg "missing email address"
+    fi
+    SUBJECT="pgbackrest restore report for ${FROM}: $(date +%Y-%m-%d) (auto-generated)"
+
+    # convert log to html
+    #if [ ! -f "${log}".html ]; then touch "${log}".html; fi
+    #cat "${log}" | ansi2html.sh --bg=dark > "${log}".html
+
+    # send mail
+    if [ "$attach_report" = true ]; then
+        cat ${log} | mail ${mail_to} -s "${SUBJECT}" -A ${log}
+        #sendemail -v -o message-content-type=html -o message-file="${log}".html -f "${MAIL_FROM}" -t "${EMAIL}" -u "${SUBJECT}" -s "${SMTP}" -a "${log}".html
+    else
+        #sendemail -v -o message-content-type=html -o message-file="${log}".html -f "${MAIL_FROM}" -t "${EMAIL}" -u "${SUBJECT}" -s "${SMTP}"
+        cat ${log} | mail ${mail_to} -s "${SUBJECT}"
+    fi
+}
 
 function errmsg(){
     # Print error message
@@ -244,7 +280,7 @@ fi
 parent_dir=$(echo $TO | sed 's/\(.*\)\/[^\/]*/\1/')
 DIRSIZE=$(df $parent_dir |tail -1 | awk '{print $4}')
 
-if [[ $( echo "$DIRSIZE * 1000" | bc ) -le $DBSIZE ]];
+if [[ $( echo "$DIRSIZE * 1000" | bc ) -le $DBSIZE && "$NORESTORE" != "yes" ]];
 then
     error "Not enough disk space on $parent_dir to restore."
     exit 1
@@ -489,27 +525,6 @@ function pg_logical_validation(){
     fi
 }
 
-# Send report to mail address
-function sendmail(){
-    if [[ -z ${mail_to} ]]; then
-        errmsg "missing email address"
-    fi
-    SUBJECT="pgbackrest restore report for ${FROM}: $(date +%Y-%m-%d) (auto-generated)"
-
-    # convert log to html
-    #if [ ! -f "${log}".html ]; then touch "${log}".html; fi
-    #cat "${log}" | ansi2html.sh --bg=dark > "${log}".html
-
-    # send mail
-    if [ "$attach_report" = true ]; then
-        cat ${log} | mail ${mail_to} -s "${SUBJECT}" -A ${log}
-        #sendemail -v -o message-content-type=html -o message-file="${log}".html -f "${MAIL_FROM}" -t "${EMAIL}" -u "${SUBJECT}" -s "${SMTP}" -a "${log}".html
-    else
-        #sendemail -v -o message-content-type=html -o message-file="${log}".html -f "${MAIL_FROM}" -t "${EMAIL}" -u "${SUBJECT}" -s "${SMTP}"
-        cat ${log} | mail ${mail_to} -s "${SUBJECT}"
-    fi
-}
-
 
 ### MAIN ###
 STEP=1
@@ -562,7 +577,7 @@ else
     # max_locks_per_transaction = 1024        # min 10
     sed -i "s/^#max_locks_per_transaction.*/max_locks_per_transaction = ${max_locks_per_xact}        # min 10/" /etc/postgresql/${PGVER}/${FROM}_restore/postgresql.conf
     max_connections=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_connections | awk '{print $3}')
-    sed -i "s/^#max_connections.*/max_connections = ${max_connections}                   # (change requires restart)/" /etc/postgresql/${PGVER}/${FROM}_restore/postgresql.conf
+    sed -i "s/^max_connections.*/max_connections = ${max_connections}                   # (change requires restart)/" /etc/postgresql/${PGVER}/${FROM}_restore/postgresql.conf
 
     info "[STEP $((STEP++))]: PostgreSQL Starting for recovery"
     pg_start

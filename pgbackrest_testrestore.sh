@@ -10,20 +10,6 @@
 
 ver="1.3"
 
-# Changes for 1.3
-# - use pg_checksums for checkdb ( requires postgresql-$VER-pg-checksums package )
-# - determine Postgres Version from pgbackrest info
-# - create a new cluster to restore
-# - check for max_locks_per_transaction and max_connections parameter and configure postgresql.conf accordingly before starting the cluster
-# - compare DB and filesystem size before restore
-# - use mail and rely on locally configured mail processing, add mail Parameter
-# - add norestore option to check already existing clusters
-# - add target-action=promote, otherwise create extension fails
-# - error if create extension failes
-# - add an optional amcheck parameter within checkdb
-# - remove fancy colores in log messages
-# - determine Postgres Version from pgbackrest info
-
 # variables for function "sendmail()"
 attach_report=true  # or 'false'
 

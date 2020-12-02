@@ -10,4 +10,4 @@ Version 1.3
  - add target-action=promote, otherwise create extension fails
  - error if create extension failes
  - add an optional amcheck parameter within checkdb
- - remove fancy colores in log messages
+ - remove fancy colors in log messages

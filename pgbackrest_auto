@@ -246,13 +246,13 @@ if [[ -n $DATNAME && -n $CHECKDB ]]; then
 error "Not use --checkdb with --datname. It work with only Full PostgreSQL Restore"
 fi
 
-PGVER=$(pgbackrest info --stanza=${FROM} --output=json | jq '.[].db[]."version"'  | sed 's/"//g')
 
 # PostgreSQL
 #pg_instance="main"
 pg_instance="${FROM}_restore"
 if [[ -z $PGVER ]]; then
-    error "PGVER not found"
+    # get the postgres version from stanza
+    PGVER=$(pgbackrest info --stanza=${FROM} --output=json | jq -r '.[].db[-1]."version"')
 fi
 
 # get the databese size of the given or last backup set

@@ -43,7 +43,12 @@ function error(){
     # ARG: "error message"
     msg="$1"
     echo -e "$(date "+%F %T") ERROR: $msg"
+    # sendmail 
     if [[ "${REPORT}" = "yes" ]]; then sendmail; fi
+    # remove lock file
+    if [ -f "${lock}" ]; then 
+    rm "${lock}"
+    fi
     exit 1
 }
 function info(){

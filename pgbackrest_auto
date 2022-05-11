@@ -532,21 +532,6 @@ info "[STEP $((STEP++))]: Starting"
 if [[ "$NORESTORE" = "yes" ]]; then
     info "skipping restore, using port $PGPORT Cluster ${PGVER}/${pg_instance} "
 else
-    # check data dir
-    if [[ -d "${TO}" ]]; then
-        error "${TO} data directory already exists"
-    fi
-
-    pg_createcluster ${PGVER} ${pg_instance} -D ${TO}
-
-    if [ $? -ne 0 ]
-    then
-        error "pg_createcluster ${PGVER} ${pg_instance} -D ${TO} failed"
-        exit
-    fi
-
-    export PGPORT
-
     info "Starting. Restore Type: ${restore_type_msg} FROM Stanza: ${FROM} ---> TO Directory: ${TO}"
     info "Starting. Restore Settings: ${RECOVERYTYPE} ${RECOVERYTARGET} ${BACKUPSET} ${DATNAME}"
     info "Starting. Run settings: Backup host: ${BACKUPHOST}"
@@ -558,6 +543,10 @@ else
     info "Starting. PostgreSQL Database Validation: ${CHECKDB}"
     if [[ "${CLEAR}" = "yes" ]]; then info "Starting. Clear Data Directory after restore: ${CLEAR}";fi
     check_mistake_run
+    if [[ ! -d "${TO}" ]]; then
+    pg_createcluster ${PGVER} ${pg_instance} -D ${TO}
+    pg_port_pick
+    fi
     info "[STEP $((STEP++))]: Stopping PostgreSQL"
     pg_stop
     cycle_simple pg_stop_check

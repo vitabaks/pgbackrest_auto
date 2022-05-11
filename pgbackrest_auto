@@ -249,21 +249,19 @@ if [[ -z $PGVER ]]; then
     PGVER=$(pgbackrest info --stanza=${FROM} --output=json | jq -r '.[].db[-1]."version"')
 fi
 
-# get the databese size of the given or last backup set
-# json output does not support --set parameter
-if [[ $RECOVERYTARGET ]]; then
-    DBSIZE=$(pgbackrest info --stanza=${FROM} --output=json | jq '.[].backup[] |  select(.label == "${RECOVERYTARGET}") | .info.size')
-else
-    DBSIZE=$(pgbackrest info --stanza=${FROM} --output=json | jq '.[].backup[].info.size'|tail -1)
+# Compare DB and filesystem size before restore
+# get the database size from the given backup-set or last backup
+if [[ -n $BACKUPSET ]]; then
+    DBSIZE=$(pgbackrest info --stanza="${FROM}" --output=json | jq -r '.[].backup[] |  select(.label == "${BACKUPSET}") | .info.size')
 fi
-
-parent_dir=$(echo $TO | sed 's/\(.*\)\/[^\/]*/\1/')
-DIRSIZE=$(df $parent_dir |tail -1 | awk '{print $4}')
-
+if [[ -z $BACKUPSET ]]; then
+    DBSIZE=$(pgbackrest info --stanza="${FROM}" --output=json | jq -r '.[].backup[-1].info.size')
+fi
+# check the disk space
+DIRSIZE=$(df "$TO" |tail -1 | awk '{print $4}')
 if [[ $( echo "$DIRSIZE * 1000" | bc ) -le $DBSIZE && "$NORESTORE" != "yes" ]];
 then
-    error "Not enough disk space on $parent_dir to restore."
-    exit 1
+    error "Not enough disk space for restore to $TO"
 fi
 
 # checkdb

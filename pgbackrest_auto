@@ -602,13 +602,7 @@ fi
 # [ optional ]
 if [[ "${CLEAR}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Stopping PostgreSQL and Clear Data Directory"
-
-    pg_ctlcluster -m i ${PGVER} ${pg_instance} stop
-
-    if [ $? -ne 0 ]
-    then
-        errmsg "Cluster ${PGVER}/${pg_instance} did not stop"
-    fi
+    pg_stop
     cycle_simple pg_stop_check
     if [[ $code -eq 3 ]]; then
         pg_dropcluster ${PGVER} ${pg_instance}

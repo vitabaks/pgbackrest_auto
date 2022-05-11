@@ -220,11 +220,6 @@ lock="/tmp/pgbackrest_auto_${FROM}.lock"
 exec 9>"${lock}"
 flock -n 9 || exit
 
-if [[ -z ${mail_to} ]]; then
-    errmsg "missing email address"
-fi
-
-
 [[ -z "${FROM}" ]] && error "--from is missing"
 [[ -z "${TO}" ]] && error "--to is missing"
 [[ -z $RECOVERYTYPE && -n $RECOVERYTARGET ]] && error "--recovery-type is missing"
@@ -240,10 +235,9 @@ if [[ -n $DATNAME && -n $CHECKDB ]]; then
 error "Not use --checkdb with --datname. It work with only Full PostgreSQL Restore"
 fi
 
-
 # PostgreSQL
 #pg_instance="main"
-pg_instance="${FROM}_restore"
+pg_instance=$(bash -c "echo ${TO} | sed -e 's|.*/||g'")
 if [[ -z $PGVER ]]; then
     # get the postgres version from stanza
     PGVER=$(pgbackrest info --stanza=${FROM} --output=json | jq -r '.[].db[-1]."version"')
@@ -449,7 +443,7 @@ function pg_data_validation(){
             info "Start data validation for database $db"
             if pgisready 1> /dev/null; then
                 info "starting pg_dump"
-                pg_dump -d ${db} --cluster=${PGVER}/${FROM}_restore >> /dev/null
+                pg_dump -d ${db} --cluster=${PGVER}/${pg_instance} >> /dev/null
                 if [[ $? -ne 0 ]]; then
                     errmsg "Data validation in the database $db - Failed"
                 else
@@ -512,24 +506,24 @@ exec &> >(tee -a "${log}")
 info "[STEP $((STEP++))]: Starting"
 
 if [[ "$NORESTORE" = "yes" ]]; then
-    PGPORT=$(pg_lsclusters |grep "${PGVER} *${FROM}_restore"| awk '{print $3}')
+    PGPORT=$(pg_lsclusters |grep "${PGVER} *${pg_instance}"| awk '{print $3}')
     export PGPORT
-    info "skipping restore, using port $PGPORT Cluster ${PGVER}/${FROM}_restore "
+    info "skipping restore, using port $PGPORT Cluster ${PGVER}/${pg_instance} "
 else
     # check data dir
     if [[ -d "${TO}" ]]; then
         error "${TO} data directory already exists"
     fi
 
-    pg_createcluster ${PGVER} ${FROM}_restore -D ${TO}
+    pg_createcluster ${PGVER} ${pg_instance} -D ${TO}
 
     if [ $? -ne 0 ]
     then
-        error "pg_createcluster ${PGVER} ${FROM}_restore -D ${TO} failed"
+        error "pg_createcluster ${PGVER} ${pg_instance} -D ${TO} failed"
         exit
     fi
 
-    PGPORT=$(pg_lsclusters |grep "${PGVER} *${FROM}_restore"| awk '{print $3}')
+    PGPORT=$(pg_lsclusters |grep "${PGVER} *${pg_instance}"| awk '{print $3}')
     export PGPORT
 
     info "Starting. Restore Type: ${restore_type_msg} FROM Stanza: ${FROM} ---> TO Directory: ${TO}"
@@ -553,9 +547,9 @@ else
     # determine and set max_locks_per_xact parameter in postgresql.conf
     max_locks_per_xact=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_locks_per_xact | awk '{print $3}')
     # max_locks_per_transaction = 1024        # min 10
-    sed -i "s/^#max_locks_per_transaction.*/max_locks_per_transaction = ${max_locks_per_xact}        # min 10/" /etc/postgresql/${PGVER}/${FROM}_restore/postgresql.conf
+    sed -i "s/^#max_locks_per_transaction.*/max_locks_per_transaction = ${max_locks_per_xact}        # min 10/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
     max_connections=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_connections | awk '{print $3}')
-    sed -i "s/^max_connections.*/max_connections = ${max_connections}                   # (change requires restart)/" /etc/postgresql/${PGVER}/${FROM}_restore/postgresql.conf
+    sed -i "s/^max_connections.*/max_connections = ${max_connections}                   # (change requires restart)/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
 
     info "[STEP $((STEP++))]: PostgreSQL Starting for recovery"
     pg_start
@@ -592,15 +586,15 @@ fi
 if [[ "${CLEAR}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Stopping PostgreSQL and Clear Data Directory"
 
-    pg_ctlcluster -m i ${PGVER} ${FROM}_restore stop
+    pg_ctlcluster -m i ${PGVER} ${pg_instance} stop
 
     if [ $? -ne 0 ]
     then
-        errmsg "Cluster ${PGVER}/${FROM}_restore did not stop"
+        errmsg "Cluster ${PGVER}/${pg_instance} did not stop"
     fi
     cycle_simple pg_stop_check
     if [[ $code -eq 3 ]]; then
-        pg_dropcluster ${PGVER} ${FROM}_restore
+        pg_dropcluster ${PGVER} ${pg_instance}
         rm -rf ${TO}_remapped_tablespaces
     fi
 fi

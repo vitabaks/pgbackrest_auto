@@ -307,6 +307,14 @@ function check_mistake_run(){
     fi
 }
 
+function pg_port_pick(){
+    if [[ -f /etc/postgresql/"${PGVER}"/"${pg_instance}"/postgresql.conf ]]; then
+        PGPORT=$(sed -n 's/port.*=.*\([0-9]\{4\}\).*/\1/p' /etc/postgresql/"${PGVER}"/"${pg_instance}"/postgresql.conf | tail -1)
+    else
+        error "port not found or missing /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf file"
+    fi
+}
+
 function cycle_simple(){
     # ARG: command
     # Assign variable 'status' = "ok" or "er"
@@ -518,11 +526,10 @@ STEP=1
 rm -f "${log}"
 touch "${log}"
 exec &> >(tee -a "${log}")
+pg_port_pick
 info "[STEP $((STEP++))]: Starting"
 
 if [[ "$NORESTORE" = "yes" ]]; then
-    PGPORT=$(pg_lsclusters |grep "${PGVER} *${pg_instance}"| awk '{print $3}')
-    export PGPORT
     info "skipping restore, using port $PGPORT Cluster ${PGVER}/${pg_instance} "
 else
     # check data dir
@@ -538,7 +545,6 @@ else
         exit
     fi
 
-    PGPORT=$(pg_lsclusters |grep "${PGVER} *${pg_instance}"| awk '{print $3}')
     export PGPORT
 
     info "Starting. Restore Type: ${restore_type_msg} FROM Stanza: ${FROM} ---> TO Directory: ${TO}"

@@ -218,8 +218,6 @@ for `--checkdb`:
 
 for `--report`:
 - sendemail
-- gawk
-- [ansi2html.sh](https://github.com/pixelb/scripts/blob/master/scripts/ansi2html.sh) script
 - Specify smtp parameters `smtp_server`, `mail_from`, `mail_to` in the `/usr/bin/pgbackrest_auto` file
 
 local `trust` for `postgres` (login by Unix domain socket) in the `pg_hba.conf` or use `.pgpass` file.
@@ -231,9 +229,8 @@ Run as user: `postgres`
 
 ## Installation
 1. Download and copy the `pgbackrest_auto` script to `/usr/bin/` directory
-2. Download and copy the `ansi2html.sh` script to `/usr/bin/` directory
-3. Grant execute rights on the scripts
-4. Install `amcheck` package into your system
+2. Grant execute rights on the scripts
+3. Install `amcheck` package into your system
 > the amcheck extension will be automatically installed to the restored databases
 
 

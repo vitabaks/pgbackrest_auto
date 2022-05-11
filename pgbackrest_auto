@@ -469,8 +469,9 @@ function amcheck_exists(){
         error "CREATE EXTENSION $extension failed"
     fi
 }
-# amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
-function pg_logical_validation(){
+
+# pg_checksums
+function pg_checksums(){
     info "starting pg_checksums validation"
     /usr/lib/postgresql/${PGVER}/bin/pg_checksums -c -D ${TO}
     if [[ $? -ne 0 ]]; then
@@ -478,6 +479,10 @@ function pg_logical_validation(){
     else
         info "pg_checksums validation ok"
     fi
+}
+
+# amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
+function pg_logical_validation(){
     if [ "$AMCHECK" ]; then
         for db_name in "${ok_dbArray[@]}"; do
             if pgisready 1> /dev/null; then
@@ -579,7 +584,9 @@ if [[ "${CHECKDB}" = "yes" && "${recovery}" = "ok" ]]; then
 info "[STEP $((STEP++))]: Validate for physical database corruption"
 pg_data_validation
 info "[STEP $((STEP++))]: Validate for logical database corruption"
-# amcheck + pg_checksums
+# checksums
+pg_checksums
+# amcheck
 pg_logical_validation
 fi
 # [ optional ]

@@ -4,6 +4,7 @@
 
 # Dependencies: OS Debian/Ubuntu, PostgreSQL >= 9.4, pgbackrest >= 2.01;
 # for "--checksums" (and "--checkdb"): postgresql-$PGVER-pg-checksums package (if PostgreSQL version <= 11)
+# for "--amcheck" (and "--checkdb"): amcheck_next extension/SQL version >=2 (if PostgreSQL version <= 10)
 # for "--report": sendemail
 # Requirements: local trust for postgres (login by Unix domain socket) in the pg_hba.conf or ".pgpass"
 # Run as user: postgres
@@ -480,20 +481,6 @@ function pg_data_validation(){
         done
 }
 
-# amcheck CREATE EXTENSION if not exists
-function amcheck_exists(){
-    if [ "$PGVER" -lt "90" ]; then
-        extension='amcheck'
-    else
-        extension='amcheck_next'
-    fi
-    psql -v "ON_ERROR_STOP" -p "${PGPORT}" -U postgres -d "$db_name" -tAc "CREATE EXTENSION if not exists $extension" 1> /dev/null
-    if [ $? -ne 0 ]
-    then
-        error "CREATE EXTENSION $extension failed"
-    fi
-}
-
 # pg_checksums
 function pg_checksums(){
     info "pg_checksums: starting data checksums validation"
@@ -505,25 +492,37 @@ function pg_checksums(){
     fi
 }
 
-# amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
-function pg_logical_validation(){
-    if [ "$AMCHECK" ]; then
-        for db_name in "${ok_dbArray[@]}"; do
-            if pgisready 1> /dev/null; then
-                if amcheck_exists; then
-                    info "Verify the logical consistency of the structure of indexes and heap relations in the database $db_name"
-                    indexes=$(psql -p "${PGPORT}" -d "$db_name" -tXAc "SELECT quote_ident(n.nspname)||'.'||quote_ident(c.relname) FROM pg_index i JOIN pg_opclass op ON i.indclass[0] = op.oid JOIN pg_am am ON op.opcmethod = am.oid JOIN pg_class c ON i.indexrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE am.amname = 'btree' AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND c.relpersistence != 't' AND c.relkind = 'i' AND i.indisready AND i.indisvalid")
-                    for index in $indexes; do
-                       # info "Verify the logical consistency of the structure of index ${index}"
-                        psql -v ON_ERROR_STOP=on -p "${PGPORT}" -d "$db_name" -tAc "SELECT bt_index_parent_check('${index}')" 1> /dev/null
-                            if [[ $? -ne 0 ]]; then
-                                errmsg "Logical validation for index ${index} ( database $db_name ) - Failed"
-                            fi
-                    done
-                fi
-            fi
-        done
+# amcheck CREATE EXTENSION if not exists
+function amcheck_exists(){
+    if [ "$PGVER" -le "10" ]; then
+        extension='amcheck_next'
+    else
+        extension='amcheck'
     fi
+    psql -v "ON_ERROR_STOP" -p "${PGPORT}" -U postgres -d "$db_name" -tAc "CREATE EXTENSION if not exists $extension" 1> /dev/null
+    if [ $? -ne 0 ]
+    then
+        error "CREATE EXTENSION $extension failed"
+    fi
+}
+
+# amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
+function amcheck(){
+    for db_name in "${ok_dbArray[@]}"; do
+        if pgisready 1> /dev/null; then
+            if amcheck_exists; then
+                info "amcheck: verify the logical consistency of the structure of indexes and heap relations in the database $db_name"
+                indexes=$(psql -p "${PGPORT}" -d "$db_name" -tXAc "SELECT quote_ident(n.nspname)||'.'||quote_ident(c.relname) FROM pg_index i JOIN pg_opclass op ON i.indclass[0] = op.oid JOIN pg_am am ON op.opcmethod = am.oid JOIN pg_class c ON i.indexrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE am.amname = 'btree' AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND c.relpersistence != 't' AND c.relkind = 'i' AND i.indisready AND i.indisvalid")
+                for index in $indexes; do
+                    # info "amcheck: verify the logical consistency of the structure of index ${index}"
+                    psql -v ON_ERROR_STOP=on -p "${PGPORT}" -d "$db_name" -tAc "SELECT bt_index_parent_check('${index}')" 1> /dev/null
+                        if [[ $? -ne 0 ]]; then
+                            errmsg "amcheck: logical validation for index ${index} ( database $db_name ) - Failed"
+                        fi
+                done
+            fi
+        fi
+    done
 }
 
 
@@ -601,8 +600,9 @@ if [[ "${CHECKSUMS}" = "yes" ]]; then
 pg_checksums
 fi
 # amcheck
-pg_logical_validation
-
+if [[ "${AMCHECK}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
+amcheck
+fi
 # [ optional ]
 if [[ "${CLEAR}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Stopping PostgreSQL and Clear Data Directory"

@@ -4,6 +4,7 @@
 
 # Dependencies: OS Debian/Ubuntu, PostgreSQL >= 9.4, pgbackrest >= 2.01;
 # for "--checkdb": amcheck_next extension/SQL version >=2 (https://github.com/petergeoghegan/amcheck)
+# for "--checksums": postgresql-$PGVER-pg-checksums package (if PostgreSQL version <= 11)
 # for "--report": sendemail
 # Requirements: local trust for postgres (login by Unix domain socket) in the pg_hba.conf or ".pgpass"
 # Run as user: postgres
@@ -74,9 +75,6 @@ while getopts ":-:" optchar; do
         to=* )
             TO=${OPTARG#*=}
             ;;
-        amcheck )
-             AMCHECK=yes
-            ;;
         datname=* )
             DATNAME=${OPTARG#*=}
             ;;
@@ -94,6 +92,12 @@ while getopts ":-:" optchar; do
             ;;
         pgver=* )
             PGVER=${OPTARG#*=}
+            ;;
+        checksums )
+             CHECKSUMS=yes
+            ;;
+        amcheck )
+             AMCHECK=yes
             ;;
         checkdb )
             CHECKDB=yes
@@ -164,11 +168,14 @@ Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ -
 --pgver=VERSION
         PostgreSQL cluster (instance) version [ optional ]
 
---checkdb
-        Validate for Physical and Logical Database Corruption (requires Full PostgreSQL Restore)
+--checksums
+        Check data checksums
 
 --amcheck
-        Validate Indexes (requires --checkdb)
+        Validate Indexes (verify the logical consistency of the structure of indexes and heap relations)
+
+--checkdb
+        Validate for Physical and Logical Database Corruption (includes: pg_dump >> /dev/null, checksums, amcheck)
 
 --clear
         Clear PostgreSQL Data directory after Restore (the path was specified in the \"--to\" parameter ) [ optional ]
@@ -491,11 +498,11 @@ function amcheck_exists(){
 # pg_checksums
 function pg_checksums(){
     info "starting pg_checksums validation"
-    /usr/lib/postgresql/${PGVER}/bin/pg_checksums -c -D ${TO}
+    /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums --check -D "${TO}"
     if [[ $? -ne 0 ]]; then
-        errmsg "pg_checksums validation failed"
+        errmsg "pg_checksums validation - Failed"
     else
-        info "pg_checksums validation ok"
+        info "pg_checksums validation - Successful"
     fi
 }
 
@@ -588,12 +595,15 @@ done
 if [[ "${CHECKDB}" = "yes" && "${recovery}" = "ok" ]]; then
 info "[STEP $((STEP++))]: Validate for physical database corruption"
 pg_data_validation
+fi
 info "[STEP $((STEP++))]: Validate for logical database corruption"
 # checksums
+if [[ "${CHECKSUMS}" = "yes" ]]; then
 pg_checksums
+fi
 # amcheck
 pg_logical_validation
-fi
+
 # [ optional ]
 if [[ "${CLEAR}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Stopping PostgreSQL and Clear Data Directory"

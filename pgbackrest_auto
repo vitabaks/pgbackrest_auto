@@ -604,7 +604,7 @@ fi
 if [[ "${AMCHECK}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
 amcheck
 fi
-# [ optional ]
+# [ optional ] clear data directory
 if [[ "${CLEAR}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Stopping PostgreSQL and Clear Data Directory"
     pg_stop
@@ -617,19 +617,13 @@ fi
 if [[ "${REPORT}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Send report to mail address"
     sendmail
-    # remove html log
-    # rm "${log}"
 fi
-info "Finish"
-
-# remove log file
-#if [ -f "${log}" ]; then
-#    rm "${log}"
-#fi
 
 # remove lock file
 if [ -f "${lock}" ]; then
     rm "${lock}"
 fi
+
+info "Finish"
 
 exit

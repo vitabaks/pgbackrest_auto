@@ -3,8 +3,7 @@
 # Title: /usr/bin/pgbackrest_auto - Automatic Restore PostgreSQL from backup
 
 # Dependencies: OS Debian/Ubuntu, PostgreSQL >= 9.4, pgbackrest >= 2.01;
-# for "--checkdb": amcheck_next extension/SQL version >=2 (https://github.com/petergeoghegan/amcheck)
-# for "--checksums": postgresql-$PGVER-pg-checksums package (if PostgreSQL version <= 11)
+# for "--checksums" (and "--checkdb"): postgresql-$PGVER-pg-checksums package (if PostgreSQL version <= 11)
 # for "--report": sendemail
 # Requirements: local trust for postgres (login by Unix domain socket) in the pg_hba.conf or ".pgpass"
 # Run as user: postgres
@@ -497,12 +496,12 @@ function amcheck_exists(){
 
 # pg_checksums
 function pg_checksums(){
-    info "starting pg_checksums validation"
+    info "pg_checksums: starting data checksums validation"
     /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums --check -D "${TO}"
     if [[ $? -ne 0 ]]; then
-        errmsg "pg_checksums validation - Failed"
+        errmsg "pg_checksums: data validation - Failed"
     else
-        info "pg_checksums validation - Successful"
+        info "pg_checksums: data validation - Successful"
     fi
 }
 

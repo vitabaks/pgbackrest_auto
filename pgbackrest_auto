@@ -226,7 +226,7 @@ fi
 sleep=1
 limit=3600
 # Log - add date to prevent rotation
-log="/var/log/pgbackrest/pgbackrest_testrestore_${FROM}.log"
+log="/var/log/pgbackrest/pgbackrest_auto_${FROM}.log"
 # Global lock
 lock="/tmp/pgbackrest_auto_${FROM}.lock"
 exec 9>"${lock}"

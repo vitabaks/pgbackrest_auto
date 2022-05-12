@@ -596,7 +596,7 @@ pg_data_validation
 fi
 info "[STEP $((STEP++))]: Validate for logical database corruption"
 # checksums
-if [[ "${CHECKSUMS}" = "yes" ]]; then
+if [[ "${CHECKSUMS}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
 pg_checksums
 fi
 # amcheck

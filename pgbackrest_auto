@@ -590,6 +590,7 @@ while true; do
         continue
     fi
 done
+# pg_dump >> /dev/null
 if [[ "${CHECKDB}" = "yes" && "${recovery}" = "ok" ]]; then
 info "[STEP $((STEP++))]: Validate for physical database corruption"
 pg_data_validation

@@ -230,6 +230,14 @@ then
     exit
 fi
 
+# check if a directory exists
+if [[ ! -d "${TO}" ]]; then
+    if ! mkdir -p "$TO"; then
+        warnmsg "cannot create directory "$TO""
+        exit
+    fi
+fi
+
 sleep=1
 limit=3600
 # Log - add date to prevent rotation

@@ -2,7 +2,7 @@
 # Author: Vitaliy Kukharik (vitabaks@gmail.com)
 # Title: /usr/bin/pgbackrest_auto - Automatic Restore PostgreSQL from backup
 
-# Dependencies: OS Debian/Ubuntu, PostgreSQL >= 9.4, pgbackrest >= 2.01;
+# Dependencies: OS Debian/Ubuntu, PostgreSQL >= 9.4, pgbackrest >= 2.01, "jq" package;
 # for "--checksums" (and "--checkdb"): postgresql-$PGVER-pg-checksums package (if PostgreSQL version <= 11)
 # for "--amcheck" (and "--checkdb"): amcheck_next extension/SQL version >=2 (if PostgreSQL version <= 10)
 # for "--report": sendemail
@@ -13,8 +13,8 @@ ver="1.3"
 
 # variables for function "sendmail()"
 smtp_server="10.128.64.5:25"
-mail_from="backuper@my-domain.ru"
-mail_to="monitoring.dba@my-domain.ru"
+mail_from="backuper@my-domain.com"
+mail_to="dba@my-domain.com"
 attach_report=true  # or 'false'
 
 # Send report to mail address
@@ -44,10 +44,10 @@ function error(){
     # ARG: "error message"
     msg="$1"
     echo -e "$(date "+%F %T") ERROR: $msg"
-    # sendmail 
+    # sendmail
     if [[ "${REPORT}" = "yes" ]]; then sendmail; fi
     # remove lock file
-    if [ -f "${lock}" ]; then 
+    if [ -f "${lock}" ]; then
     rm "${lock}"
     fi
     exit 1
@@ -221,6 +221,22 @@ if [ "$1" = "-v" ] || [ "$1" = "--version" ] || [ "$1" = "version" ]; then echo 
 USR=$(whoami)
 if [ "$USR" != 'postgres' ]; then
     error "$0 must be run as postgres"
+fi
+
+# check if sendemail exists
+if [[ "${REPORT}" = "yes" ]]; then
+    if ! command -v sendemail &> /dev/null
+    then
+        errmsg "sendemail could not be found. Please install the sendemail package"
+        exit
+    fi
+fi
+
+# check if jq exists
+if ! command -v jq &> /dev/null
+then
+    errmsg "jq could not be found. Please install the jq package"
+    exit
 fi
 
 sleep=1

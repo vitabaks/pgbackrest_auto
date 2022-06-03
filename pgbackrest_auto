@@ -563,7 +563,7 @@ else
     info "Starting. PostgreSQL Database Validation: ${CHECKDB}"
     if [[ "${CLEAR}" = "yes" ]]; then info "Starting. Clear Data Directory after restore: ${CLEAR}";fi
     check_mistake_run
-    if [[ ! -d "${TO}" ]]; then
+    if [[ -z "$(ls -A ${TO})" ]]; then
     pg_createcluster ${PGVER} ${pg_instance} -D ${TO}
     pg_port_pick
     fi

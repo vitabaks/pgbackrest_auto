@@ -280,7 +280,7 @@ if [[ -z $BACKUPSET ]]; then
 fi
 # check the disk space
 DIRSIZE=$(df "$TO" |tail -1 | awk '{print $4}')
-if [[ $( echo "$DIRSIZE * 1000" | bc ) -le $DBSIZE && "$NORESTORE" != "yes" ]];
+if [[ $(( "$DIRSIZE * 1000" )) -le $DBSIZE && "$NORESTORE" != "yes" ]];
 then
     error "Not enough disk space for restore to $TO"
 fi

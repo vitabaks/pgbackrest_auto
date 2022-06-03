@@ -1,12 +1,11 @@
 Version 1.3
 
- - use pg_checksums for checkdb ( requires postgresql-$VER-pg-checksums package )
- - determine Postgres Version from pgbackrest info
- - create a new cluster to restore
- - check for max_locks_per_transaction and max_connections parameter and configure postgresql.conf accordingly before starting the cluster
+ - use pg_checksums for "--checksums" and "--checkdb" (requires postgresql-$PGVER-pg-checksums package for PostgreSQL version 11 and below)
+ - automatic determine Postgres version from pgbackrest info
+ - automatic create a new postgres cluster (initdb) to restore to the path specified in the "--to" option (if it does not exist)
+ - determine postgresql parameters from pg_controldata and configure postgresql.conf accordingly after restore
  - compare DB and filesystem size before restore
  - add norestore option to check already existing clusters
- - add target-action=promote, otherwise create extension fails
  - error if create extension failes
  - add an optional amcheck parameter within checkdb
  - remove colors in log messages

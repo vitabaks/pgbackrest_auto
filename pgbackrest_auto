@@ -553,6 +553,22 @@ function amcheck(){
     done
 }
 
+# determine postgresql parameters from pg_controldata and configure postgresql.conf
+function postgresql_conf(){
+    # max_connections
+    max_connections=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_connections | awk '{print $3}')
+    sed -ri "s/^(\s*)(max_connections =.*$)/\1max_connections = ${max_connections}/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
+    # max_worker_processes
+    max_worker_processes=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_worker_processes | awk '{print $3}')
+    sed -ri "s/^(\s*)(#max_worker_processes =.*$)/\1max_worker_processes = ${max_worker_processes}/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
+    # max_prepared_transactions
+    max_prepared_transactions=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_prepared_xacts | awk '{print $3}')
+    sed -ri "s/^(\s*)(#max_prepared_transactions =.*$)/\1max_prepared_transactions = ${max_prepared_transactions}/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
+    # max_locks_per_transaction
+    max_locks_per_transaction=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_locks_per_xact | awk '{print $3}')
+    sed -ri "s/^(\s*)(#max_locks_per_transaction =.*$)/\1max_locks_per_transaction = ${max_locks_per_transaction}/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
+}
+
 
 ### MAIN ###
 STEP=1
@@ -582,14 +598,8 @@ else
     info "[STEP $((STEP++))]: Restoring from backup"
     # Restore from backup
     pgbackrest_exec
-
-    # determine and set max_locks_per_xact parameter in postgresql.conf
-    max_locks_per_xact=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_locks_per_xact | awk '{print $3}')
-    # max_locks_per_transaction = 1024        # min 10
-    sed -i "s/^#max_locks_per_transaction.*/max_locks_per_transaction = ${max_locks_per_xact}        # min 10/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
-    max_connections=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_connections | awk '{print $3}')
-    sed -i "s/^max_connections.*/max_connections = ${max_connections}                   # (change requires restart)/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
-
+    # get postgresql parameters from pg_controldata
+    postgresql_conf
     info "[STEP $((STEP++))]: PostgreSQL Starting for recovery"
     pg_start
 fi

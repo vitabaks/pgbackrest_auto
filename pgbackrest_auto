@@ -271,6 +271,12 @@ fi
 
 # initdb if the directory ("--to") is empty
 if [[ -z "$(ls -A ${TO})" ]]; then
+    # check if postgresql package exists
+    if [[ -z "$(dpkg -l | grep postgresql-${PGVER})" ]]; then
+        warnmsg "the postgresql version ${PGVER} package could not be found. Please install the postgresql-${PGVER} package"
+        exit
+    fi
+    # pg_createcluster
     if ! pg_createcluster ${PGVER} ${pg_instance} -D ${TO} &> /dev/null; then
         warnmsg "initdb error with the command \"pg_createcluster ${PGVER} ${pg_instance} -D ${TO}\""
         exit

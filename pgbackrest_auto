@@ -32,18 +32,21 @@ function sendmail(){
     fi
 }
 
-function errmsg(){
-    # Print error message
-    # ARG: "error message"
+function info(){
     msg="$1"
-    echo -e "$(date "+%F %T") WARN: $msg"
+    echo -e "$(date "+%F %T") INFO: $msg"
+    logger -p user.notice -t "$(basename "$0")" "$msg"
+}
+function warnmsg(){
+    msg="$1"
+    echo -e "$(date "+%F %T") \e[33mWARN:\e[0m $msg"
+    logger -p user.notice -t "$(basename "$0")" "$msg"
     return 1
 }
 function error(){
-    # Print error message and exit
-    # ARG: "error message"
     msg="$1"
-    echo -e "$(date "+%F %T") ERROR: $msg"
+    echo -e "$(date "+%F %T") \e[91mERROR:\e[0m $msg"
+    logger -p user.error -t "$(basename "$0")" "$msg"
     # sendmail
     if [[ "${REPORT}" = "yes" ]]; then sendmail; fi
     # remove lock file
@@ -51,18 +54,6 @@ function error(){
     rm "${lock}"
     fi
     exit 1
-}
-function info(){
-    # Print info message
-    # ARG: "info message"
-    msg="$1"
-    echo -e "$(date "+%F %T") INFO: $msg"
-}
-function blinkmsg(){
-    # Print blink info message
-    # ARG: "info message"
-    msg="$1"
-    echo -e "$(date "+%F %T") WARN: $msg"
 }
 
 
@@ -227,7 +218,7 @@ fi
 if [[ "${REPORT}" = "yes" ]]; then
     if ! command -v sendemail &> /dev/null
     then
-        errmsg "sendemail could not be found. Please install the sendemail package"
+        warnmsg "sendemail could not be found. Please install the sendemail package"
         exit
     fi
 fi
@@ -235,7 +226,7 @@ fi
 # check if jq exists
 if ! command -v jq &> /dev/null
 then
-    errmsg "jq could not be found. Please install the jq package"
+    warnmsg "jq could not be found. Please install the jq package"
     exit
 fi
 
@@ -325,7 +316,7 @@ function check_errcode(){
 
 function check_mistake_run(){
     if [[ -n "${TO}" ]]; then
-        blinkmsg "Restoring to ${TO} Waiting 30 seconds. The directory will be overwritten. If mistake, press ^C"
+        warnmsg "Restoring to ${TO} Waiting 30 seconds. The directory will be overwritten. If mistake, press ^C"
         sleep 30s
     fi
 }
@@ -376,7 +367,7 @@ function pg_stop_check(){
         info "${TO} is not a database cluster directory. May be its clean."
         status=ok
     else
-        errmsg "PostgreSQL check failed"
+        warnmsg "PostgreSQL check failed"
         status=er
     fi
 }
@@ -390,7 +381,7 @@ function pg_stop(){
         if [[ $? -eq 0 ]]; then
             info "PostgreSQL instance ${pg_instance} stopped"
         else
-            errmsg "PostgreSQL instance ${pg_instance} stop failed"
+            warnmsg "PostgreSQL instance ${pg_instance} stop failed"
         fi
     fi
 }
@@ -403,7 +394,7 @@ function pgisready(){
         status=ok
     else
         info "PostgreSQL instance ${pg_instance} no response"
-        errmsg "PostgreSQL instance ${pg_instance} no response"
+        warnmsg "PostgreSQL instance ${pg_instance} no response"
         sleep 3s
     fi
 }
@@ -486,13 +477,13 @@ function pg_data_validation(){
                 info "starting pg_dump"
                 pg_dump -d ${db} --cluster=${PGVER}/${pg_instance} >> /dev/null
                 if [[ $? -ne 0 ]]; then
-                    errmsg "Data validation in the database $db - Failed"
+                    warnmsg "Data validation in the database $db - Failed"
                 else
                     info "Data validation in the database $db - Successful"
                     ok_dbArray+=("$db")
                 fi
             else
-                errmsg "PostgreSQL instance ${pg_instance} no response"
+                warnmsg "PostgreSQL instance ${pg_instance} no response"
             fi
         done
 }
@@ -502,7 +493,7 @@ function pg_checksums(){
     info "pg_checksums: starting data checksums validation"
     /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums --check -D "${TO}"
     if [[ $? -ne 0 ]]; then
-        errmsg "pg_checksums: data validation - Failed"
+        warnmsg "pg_checksums: data validation - Failed"
     else
         info "pg_checksums: data validation - Successful"
     fi
@@ -533,7 +524,7 @@ function amcheck(){
                     # info "amcheck: verify the logical consistency of the structure of index ${index}"
                     psql -v ON_ERROR_STOP=on -p "${PGPORT}" -d "$db_name" -tAc "SELECT bt_index_parent_check('${index}')" 1> /dev/null
                         if [[ $? -ne 0 ]]; then
-                            errmsg "amcheck: logical validation for index ${index} ( database $db_name ) - Failed"
+                            warnmsg "amcheck: logical validation for index ${index} ( database $db_name ) - Failed"
                         fi
                 done
             fi
@@ -599,8 +590,8 @@ while true; do
         info "Restore done"
         break
     elif [[ "${recovery}" = "er" ]]; then
-        errmsg "[STEP [ER]: PostgreSQL Recovery Failed"
-        errmsg "Restoring from archive failed"
+        warnmsg "[STEP [ER]: PostgreSQL Recovery Failed"
+        warnmsg "Restoring from archive failed"
         pg_stop; check_errcode "exit"
     else
         continue

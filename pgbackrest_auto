@@ -230,14 +230,6 @@ then
     exit
 fi
 
-# check if a directory exists
-if [[ ! -d "${TO}" ]]; then
-    if ! mkdir -p "$TO"; then
-        warnmsg "cannot create directory "$TO""
-        exit
-    fi
-fi
-
 sleep=1
 limit=3600
 # Log - add date to prevent rotation
@@ -263,11 +255,26 @@ error "Not use --checkdb with --datname. It work with only Full PostgreSQL Resto
 fi
 
 # PostgreSQL
-#pg_instance="main"
 pg_instance=$(bash -c "echo ${TO} | sed -e 's|.*/||g'")
 if [[ -z $PGVER ]]; then
     # get the postgres version from stanza
     PGVER=$(pgbackrest info --stanza=${FROM} --output=json | jq -r '.[].db[-1]."version"')
+fi
+
+# check if a directory exists
+if [[ ! -d "${TO}" ]]; then
+    if ! mkdir -p "$TO"; then
+        warnmsg "cannot create directory "$TO""
+        exit
+    fi
+fi
+
+# initdb if the directory ("--to") is empty
+if [[ -z "$(ls -A ${TO})" ]]; then
+    if ! pg_createcluster ${PGVER} ${pg_instance} -D ${TO} &> /dev/null; then
+        warnmsg "initdb error with the command \"pg_createcluster ${PGVER} ${pg_instance} -D ${TO}\""
+        exit
+    fi
 fi
 
 # Compare DB and filesystem size before restore
@@ -563,10 +570,6 @@ else
     info "Starting. PostgreSQL Database Validation: ${CHECKDB}"
     if [[ "${CLEAR}" = "yes" ]]; then info "Starting. Clear Data Directory after restore: ${CLEAR}";fi
     check_mistake_run
-    if [[ -z "$(ls -A ${TO})" ]]; then
-    pg_createcluster ${PGVER} ${pg_instance} -D ${TO}
-    pg_port_pick
-    fi
     info "[STEP $((STEP++))]: Stopping PostgreSQL"
     pg_stop
     cycle_simple pg_stop_check

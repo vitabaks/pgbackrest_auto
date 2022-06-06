@@ -557,16 +557,16 @@ function amcheck(){
 function postgresql_conf(){
     # max_connections
     max_connections=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_connections | awk '{print $3}')
-    sed -ri "s/^(\s*)(max_connections =.*$)/\1max_connections = ${max_connections}/" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
+    sed -i "/max_connections = /c\max_connections = ${max_connections}" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
     # max_worker_processes
     max_worker_processes=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_worker_processes | awk '{print $3}')
-    sed -ri "s/^(\s*)(#max_worker_processes =.*$)/\1max_worker_processes = ${max_worker_processes}/" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
+    sed -i "/max_worker_processes = /c\max_worker_processes = ${max_worker_processes}" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
     # max_prepared_transactions
     max_prepared_transactions=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_prepared_xacts | awk '{print $3}')
-    sed -ri "s/^(\s*)(#max_prepared_transactions =.*$)/\1max_prepared_transactions = ${max_prepared_transactions}/" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
+    sed -i "/max_prepared_transactions = /c\max_prepared_transactions = ${max_prepared_transactions}" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
     # max_locks_per_transaction
     max_locks_per_transaction=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_locks_per_xact | awk '{print $3}')
-    sed -ri "s/^(\s*)(#max_locks_per_transaction =.*$)/\1max_locks_per_transaction = ${max_locks_per_transaction}/" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
+    sed -i "/max_locks_per_transaction = /c\max_locks_per_transaction = ${max_locks_per_transaction}" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
 }
 
 

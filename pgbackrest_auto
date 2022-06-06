@@ -259,6 +259,15 @@ if [[ -z $PGVER ]]; then
     PGVER=$(pgbackrest info --stanza="${FROM}" --output=json | jq -r '.[].db[-1]."version"')
 fi
 
+# check if pg_checksums exists (for PostgreSQL version <= 11)
+if [[ "$PGVER" -le "11" ]] && [[ "${CHECKSUMS}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
+    if ! command -v /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums &> /dev/null
+    then
+        warnmsg "pg_checksums command not be found. Please install the postgresql-$PGVER-pg-checksums package"
+        exit
+    fi
+fi
+
 # check if a directory exists
 if [[ ! -d "${TO}" ]]; then
     if ! mkdir -p "$TO"; then
@@ -488,7 +497,7 @@ function pg_data_validation(){
         for db in $databases; do
             info "Start data validation for database $db"
             if pgisready 1> /dev/null; then
-                info "... starting pg_dump -p "${PGPORT}" -d "$db" >> /dev/null"
+                info "... starting pg_dump -p ${PGPORT} -d $db >> /dev/null"
                 if ! pg_dump -p "${PGPORT}" -d "$db" >> /dev/null
                 then
                     error "Data validation in the database $db - Failed"

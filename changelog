@@ -10,3 +10,4 @@ Version 1.3
  - add an optional amcheck parameter within checkdb
  - remove colors in log messages
  - remove dependencies - gawk, ansi2html.sh
+ - a little code refactoring

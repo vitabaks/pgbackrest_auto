@@ -15,7 +15,7 @@ ver="1.3"
 smtp_server="10.128.64.5:25"
 mail_from="backuper@my-domain.com"
 mail_to="dba@my-domain.com"
-attach_report=true  # or 'false'
+attach_report=false  # or 'true'
 
 # Send report to mail address
 function sendmail(){
@@ -85,10 +85,10 @@ while getopts ":-:" optchar; do
             PGVER=${OPTARG#*=}
             ;;
         checksums )
-             CHECKSUMS=yes
+            CHECKSUMS=yes
             ;;
         amcheck )
-             AMCHECK=yes
+            AMCHECK=yes
             ;;
         checkdb )
             CHECKDB=yes
@@ -245,39 +245,37 @@ flock -n 9 || exit
 if [[ $RECOVERYTYPE != default ]]; then
     [[ -n $RECOVERYTYPE && -z $RECOVERYTARGET ]] && error "--recovery-target is missing"
 fi
-# recovery-type - default
+# default recovery-type = immediate
 if [[ -z $RECOVERYTYPE ]]; then RECOVERYTYPE="immediate"; fi
 
 [[ $RECOVERYTYPE = immediate || $RECOVERYTYPE = default || $RECOVERYTYPE = time ]] || error "--recovery-type=( immediate | default | time )"
 [[ $RECOVERYTYPE = default && -n $RECOVERYTARGET ]] && error "Not use --recovery-type=default with --recovery-target"
-if [[ -n $DATNAME && -n $CHECKDB ]]; then
-error "Not use --checkdb with --datname. It work with only Full PostgreSQL Restore"
-fi
+if [[ -n $DATNAME && -n $CHECKDB ]]; then error "Not use --checkdb with --datname. It work with only Full PostgreSQL Restore"; fi
 
 # PostgreSQL
 PG_INSTANCE=$(bash -c "echo ${TO} | sed -e 's|.*/||g'")
 if [[ -z $PGVER ]]; then
     # get the postgres version from stanza
-    PGVER=$(pgbackrest info --stanza=${FROM} --output=json | jq -r '.[].db[-1]."version"')
+    PGVER=$(pgbackrest info --stanza="${FROM}" --output=json | jq -r '.[].db[-1]."version"')
 fi
 
 # check if a directory exists
 if [[ ! -d "${TO}" ]]; then
     if ! mkdir -p "$TO"; then
-        warnmsg "cannot create directory "$TO""
+        warnmsg "cannot create directory $TO"
         exit
     fi
 fi
 
 # initdb if the directory ("--to") is empty
-if [[ -z "$(ls -A ${TO})" ]]; then
+if [[ -z "$(ls -A "${TO}")" ]]; then
     # check if postgresql package exists
-    if [[ -z "$(dpkg -l | grep postgresql-${PGVER})" ]]; then
-        warnmsg "the postgresql version ${PGVER} package could not be found. Please install the postgresql-${PGVER} package"
+    if ! dpkg -l | grep -q postgresql-"${PGVER}"; then
+        warnmsg "the PostgreSQL version ${PGVER} could not be found. Please install the postgresql-${PGVER} package"
         exit
     fi
     # pg_createcluster
-    if ! pg_createcluster ${PGVER} ${PG_INSTANCE} -D ${TO} &> /dev/null; then
+    if ! pg_createcluster "${PGVER}" "${PG_INSTANCE}" -D "${TO}" &> /dev/null; then
         warnmsg "initdb error with the command \"pg_createcluster ${PGVER} ${PG_INSTANCE} -D ${TO}\""
         exit
     fi
@@ -292,7 +290,7 @@ if [[ -z $BACKUPSET ]]; then
     DBSIZE=$(pgbackrest info --stanza="${FROM}" --output=json | jq -r '.[].backup[-1].info.size')
 fi
 # check the disk space
-DIRSIZE=$(df "$TO" |tail -1 | awk '{print $4}')
+DIRSIZE=$(df "$TO" | tail -1 | awk '{print $4}')
 if [[ $(( "$DIRSIZE * 1000" )) -le $DBSIZE && "$NORESTORE" != "yes" ]];
 then
     error "Not enough disk space for restore to $TO"
@@ -305,7 +303,7 @@ if [[ -z $CHECKDB ]]; then CHECKDB="No"; fi
 if [[ -z $BACKUPHOST ]]; then BACKUPHOST="localhost"; fi
 backup_conf=/tmp/pgbackrest_auto.conf
 if [ ! -f $backup_conf ]; then touch $backup_conf; fi
-if [[ $PGVER = 9.4 ]]; then
+if [[ $PGVER = 9.4 || $PGVER = 94 ]]; then
     recovery_opt="pause_at_recovery_target=false"
 else
     recovery_opt="recovery_target_action=promote"
@@ -376,7 +374,7 @@ function cycle_simple(){
 function pg_stop_check(){
     # Use with function cycle_simple
     info "PostgreSQL check status"
-    /usr/bin/pg_ctlcluster ${PGVER} "${PG_INSTANCE}" status &> /dev/null
+    /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" status &> /dev/null
     code=$?
     if [[ $code -eq 3 ]]; then
         info "PostgreSQL instance ${PG_INSTANCE} not running"
@@ -394,12 +392,12 @@ function pg_stop_check(){
 }
 
 function pg_stop(){
-    /usr/bin/pg_ctlcluster ${PGVER} "${PG_INSTANCE}" status &> /dev/null
+    /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" status &> /dev/null
     code=$?
     if [[ $code -eq 0 ]]; then
         info "PostgreSQL stop"
-        /usr/bin/pg_ctlcluster ${PGVER} "${PG_INSTANCE}" stop -m fast &> /dev/null
-        if [[ $? -eq 0 ]]; then
+        if /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" stop -m fast &> /dev/null
+        then
             info "PostgreSQL instance ${PG_INSTANCE} stopped"
         else
             warnmsg "PostgreSQL instance ${PG_INSTANCE} stop failed"
@@ -409,20 +407,20 @@ function pg_stop(){
 
 function pgisready(){
     info "pgisready port ${PGPORT}"
-    pg_isready -p "${PGPORT}"
-    if [[ $? -eq 0 ]]; then
+    if pg_isready -p "${PGPORT}"
+    then
         info "PostgreSQL instance ${PG_INSTANCE} started and accepting connections"
         status=ok
     else
-        info "PostgreSQL instance ${PG_INSTANCE} no response"
         warnmsg "PostgreSQL instance ${PG_INSTANCE} no response"
         sleep 3s
     fi
 }
+
 function pg_start(){
     info "PostgreSQL start"
-    /usr/bin/pg_ctlcluster ${PGVER} "${PG_INSTANCE}" start &> /dev/null
-    if [[ $? -ne 0 ]]; then
+    if ! /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" start &> /dev/null
+    then
         error "PostgreSQL instance ${PG_INSTANCE} start failed"
     else
         pgisready 1> /dev/null
@@ -435,12 +433,11 @@ function pgbackrest_exec(){
     if [[ "${RECOVERYTYPE}" = "default" || "${RECOVERYTYPE}" = "time" ]]; then
         [[ -n "${RECOVERYTYPE}" ]] && pgbackrest_opt+=" --type=${RECOVERYTYPE}"
         [[ -n "${RECOVERYTARGET}" ]] && pgbackrest_opt+=" --target=\"${RECOVERYTARGET}\""
-        else
+    else
     pgbackrest_opt+=" --type=immediate"
     fi
-    pgbackrest_opt+=" --target-action=promote"
     # tablespace-map-all=${TO}/remapped_tablespaces
-    mkdir ${TO}_remapped_tablespaces
+    mkdir -p "${TO}"_remapped_tablespaces
     # -- repo1-path
     if [[ -f /etc/pgbackrest.conf ]]; then grep -q "repo1-path" /etc/pgbackrest.conf && pgbackrest_opt+=" --$(bash -c "grep \"repo1-path=\" /etc/pgbackrest.conf")"; fi
     # --
@@ -449,22 +446,21 @@ function pgbackrest_exec(){
         if [ -f "${detail_rst_log}" ]; then info "See detailed log in the file ${detail_rst_log}"; fi
     # execute pgbackrest
     echo "pgbackrest --config=${backup_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
-    bash -c "pgbackrest --config=${backup_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
-        if [[ $? -eq 0 ]]; then
-            info "Restore from backup done"
-        else
-            error "Restore from backup failed"
-        fi
+    if bash -c "pgbackrest --config=${backup_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
+    then
+        info "Restore from backup done"
+    else
+        error "Restore from backup failed"
+    fi
 }
 
 function pg_info_replay(){
     if [[ "${RECOVERYTYPE}" = "time" ]]; then
         info "RECOVERYTYPE time"
-        result=$(psql -p ${PGPORT} -tAc "SELECT pg_last_xact_replay_timestamp(), '${RECOVERYTARGET}' - pg_last_xact_replay_timestamp()")
+        result=$(psql -p "${PGPORT}" -tAXc "SELECT pg_last_xact_replay_timestamp(), '${RECOVERYTARGET}' - pg_last_xact_replay_timestamp()")
     else
-        result=$(psql -p ${PGPORT} -tAc "SELECT pg_last_xact_replay_timestamp()")
+        result=$(psql -p "${PGPORT}" -tAXc "SELECT pg_last_xact_replay_timestamp()")
     fi
-    info "PGPORT: $PGPORT result: $result"
     while IFS='|' read -r replay_timestamp left_timestamp; do
         if [[ -n "${left_timestamp}" ]]; then
             info "Replayed: ${replay_timestamp} Left: ${left_timestamp}"
@@ -475,7 +471,7 @@ function pg_info_replay(){
 }
 
 function pg_check_recovery(){
-    state=$(psql -p "${PGPORT}" -tAc 'SELECT pg_is_in_recovery()') 2>/dev/null
+    state=$(psql -p "${PGPORT}" -tAXc 'SELECT pg_is_in_recovery()') 2>/dev/null
     pg_info_replay
     # Is the restore complete? YES
     if [ "$state" = "f" ]; then
@@ -490,14 +486,13 @@ function pg_check_recovery(){
 }
 
 function pg_data_validation(){
-    info "pg_data_validation on port ${PGPORT}"
-    databases=$(bash -c "psql -p ${PGPORT} -tAc \"select datname from pg_database where not datistemplate\"")
+    databases=$(bash -c "psql -p ${PGPORT} -tAXc \"select datname from pg_database where not datistemplate\"")
         for db in $databases; do
             info "Start data validation for database $db"
             if pgisready 1> /dev/null; then
                 info "starting pg_dump"
-                pg_dump -d ${db} --cluster=${PGVER}/${PG_INSTANCE} >> /dev/null
-                if [[ $? -ne 0 ]]; then
+                if ! pg_dump -d "${db}" --cluster="${PGVER}"/"${PG_INSTANCE}" >> /dev/null
+                then
                     warnmsg "Data validation in the database $db - Failed"
                 else
                     info "Data validation in the database $db - Successful"
@@ -512,8 +507,8 @@ function pg_data_validation(){
 # pg_checksums
 function pg_checksums(){
     info "pg_checksums: starting data checksums validation"
-    /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums --check -D "${TO}"
-    if [[ $? -ne 0 ]]; then
+    if ! /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums --check -D "${TO}"
+    then
         warnmsg "pg_checksums: data validation - Failed"
     else
         info "pg_checksums: data validation - Successful"
@@ -527,8 +522,7 @@ function amcheck_exists(){
     else
         extension='amcheck'
     fi
-    psql -v "ON_ERROR_STOP" -p "${PGPORT}" -U postgres -d "$db_name" -tAc "CREATE EXTENSION if not exists $extension" 1> /dev/null
-    if [ $? -ne 0 ]
+    if ! psql -v "ON_ERROR_STOP" -p "${PGPORT}" -U postgres -d "$db_name" -tAXc "CREATE EXTENSION if not exists $extension" 1> /dev/null
     then
         error "CREATE EXTENSION $extension failed"
     fi
@@ -543,10 +537,10 @@ function amcheck(){
                 indexes=$(psql -p "${PGPORT}" -d "$db_name" -tXAc "SELECT quote_ident(n.nspname)||'.'||quote_ident(c.relname) FROM pg_index i JOIN pg_opclass op ON i.indclass[0] = op.oid JOIN pg_am am ON op.opcmethod = am.oid JOIN pg_class c ON i.indexrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE am.amname = 'btree' AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND c.relpersistence != 't' AND c.relkind = 'i' AND i.indisready AND i.indisvalid")
                 for index in $indexes; do
                     # info "amcheck: verify the logical consistency of the structure of index ${index}"
-                    psql -v ON_ERROR_STOP=on -p "${PGPORT}" -d "$db_name" -tAc "SELECT bt_index_parent_check('${index}')" 1> /dev/null
-                        if [[ $? -ne 0 ]]; then
-                            warnmsg "amcheck: logical validation for index ${index} ( database $db_name ) - Failed"
-                        fi
+                    if ! psql -v ON_ERROR_STOP=on -p "${PGPORT}" -d "$db_name" -tAXc "SELECT bt_index_parent_check('${index}')" 1> /dev/null
+                    then
+                        warnmsg "amcheck: logical validation for index ${index} ( database $db_name ) - Failed"
+                    fi
                 done
             fi
         fi
@@ -556,17 +550,17 @@ function amcheck(){
 # determine postgresql parameters from pg_controldata and configure postgresql.conf
 function postgresql_conf(){
     # max_connections
-    max_connections=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_connections | awk '{print $3}')
-    sed -i "/max_connections = /c\max_connections = ${max_connections}" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
+    max_connections=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_controldata "${TO}" | grep max_connections | awk '{print $3}')
+    sed -i "/max_connections = /c\max_connections = ${max_connections}" /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf
     # max_worker_processes
-    max_worker_processes=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_worker_processes | awk '{print $3}')
-    sed -i "/max_worker_processes = /c\max_worker_processes = ${max_worker_processes}" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
+    max_worker_processes=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_controldata "${TO}" | grep max_worker_processes | awk '{print $3}')
+    sed -i "/max_worker_processes = /c\max_worker_processes = ${max_worker_processes}" /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf
     # max_prepared_transactions
-    max_prepared_transactions=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_prepared_xacts | awk '{print $3}')
-    sed -i "/max_prepared_transactions = /c\max_prepared_transactions = ${max_prepared_transactions}" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
+    max_prepared_transactions=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_controldata "${TO}" | grep max_prepared_xacts | awk '{print $3}')
+    sed -i "/max_prepared_transactions = /c\max_prepared_transactions = ${max_prepared_transactions}" /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf
     # max_locks_per_transaction
-    max_locks_per_transaction=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_locks_per_xact | awk '{print $3}')
-    sed -i "/max_locks_per_transaction = /c\max_locks_per_transaction = ${max_locks_per_transaction}" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
+    max_locks_per_transaction=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_controldata "${TO}" | grep max_locks_per_xact | awk '{print $3}')
+    sed -i "/max_locks_per_transaction = /c\max_locks_per_transaction = ${max_locks_per_transaction}" /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf
 }
 
 
@@ -577,18 +571,17 @@ touch "${log}"
 exec &> >(tee -a "${log}")
 pg_port_pick
 info "[STEP $((STEP++))]: Starting"
-
 if [[ "$NORESTORE" = "yes" ]]; then
-    info "skipping restore, using port $PGPORT Cluster ${PGVER}/${PG_INSTANCE} "
+    info "Skipping restore, using port $PGPORT Cluster ${PGVER}/${PG_INSTANCE} "
 else
-    info "Starting. Restore Type: ${restore_type_msg} FROM Stanza: ${FROM} ---> TO Directory: ${TO}"
+    info "Starting. Restore Type: ${restore_type_msg} FROM Stanza: ${FROM} --> TO Directory: ${TO}"
     info "Starting. Restore Settings: ${RECOVERYTYPE} ${RECOVERYTARGET} ${BACKUPSET} ${DATNAME}"
     info "Starting. Run settings: Backup host: ${BACKUPHOST}"
     info "Starting. Run settings: Log: ${log}"
     info "Starting. Run settings: Lock run: ${lock}"
     info "Starting. PostgreSQL instance: ${PG_INSTANCE}"
     info "Starting. PostgreSQL version: ${PGVER}"
-    info "Starting. PostgreSQL PGPORT: ${PGPORT}"
+    info "Starting. PostgreSQL port: ${PGPORT}"
     info "Starting. PostgreSQL Database Validation: ${CHECKDB}"
     if [[ "${CLEAR}" = "yes" ]]; then info "Starting. Clear Data Directory after restore: ${CLEAR}";fi
     check_mistake_run
@@ -603,15 +596,12 @@ else
     info "[STEP $((STEP++))]: PostgreSQL Starting for recovery"
     pg_start
 fi
-
 cycle_simple pgisready
 info "[STEP $((STEP++))]: PostgreSQL Recovery Checking"
 # Expect recovery result
 while true; do
     info "Checking if restoring from archive is done"
     pg_check_recovery
-    # TODO bei recovery_target immediate wird $recovery nicht ok.
-    # recovery="ok"
     if [[ "${recovery}" = "ok" ]]; then
         info "Restoring from archive is done"
         info "Restore done"
@@ -624,19 +614,19 @@ while true; do
         continue
     fi
 done
-# pg_dump >> /dev/null
+# check with pg_dump >> /dev/null
 if [[ "${CHECKDB}" = "yes" && "${recovery}" = "ok" ]]; then
-info "[STEP $((STEP++))]: Validate for physical database corruption"
-pg_data_validation
+    info "[STEP $((STEP++))]: Validate for physical database corruption"
+    pg_data_validation
 fi
 info "[STEP $((STEP++))]: Validate for logical database corruption"
 # checksums
 if [[ "${CHECKSUMS}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
-pg_checksums
+    pg_checksums
 fi
 # amcheck
 if [[ "${AMCHECK}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
-amcheck
+    amcheck
 fi
 # [ optional ] clear data directory
 if [[ "${CLEAR}" = "yes" ]]; then
@@ -644,20 +634,19 @@ if [[ "${CLEAR}" = "yes" ]]; then
     pg_stop
     cycle_simple pg_stop_check
     if [[ $code -eq 3 ]]; then
-        pg_dropcluster ${PGVER} ${PG_INSTANCE}
-        rm -rf ${TO}_remapped_tablespaces
+        pg_dropcluster "${PGVER}" "${PG_INSTANCE}"
+        rm -rf "${TO}"
+        rm -rf "${TO}"_remapped_tablespaces
     fi
 fi
 if [[ "${REPORT}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Send report to mail address"
     sendmail
 fi
-
 # remove lock file
 if [ -f "${lock}" ]; then
     rm "${lock}"
 fi
-
 info "Finish"
 
 exit

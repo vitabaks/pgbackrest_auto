@@ -255,7 +255,7 @@ error "Not use --checkdb with --datname. It work with only Full PostgreSQL Resto
 fi
 
 # PostgreSQL
-pg_instance=$(bash -c "echo ${TO} | sed -e 's|.*/||g'")
+PG_INSTANCE=$(bash -c "echo ${TO} | sed -e 's|.*/||g'")
 if [[ -z $PGVER ]]; then
     # get the postgres version from stanza
     PGVER=$(pgbackrest info --stanza=${FROM} --output=json | jq -r '.[].db[-1]."version"')
@@ -277,8 +277,8 @@ if [[ -z "$(ls -A ${TO})" ]]; then
         exit
     fi
     # pg_createcluster
-    if ! pg_createcluster ${PGVER} ${pg_instance} -D ${TO} &> /dev/null; then
-        warnmsg "initdb error with the command \"pg_createcluster ${PGVER} ${pg_instance} -D ${TO}\""
+    if ! pg_createcluster ${PGVER} ${PG_INSTANCE} -D ${TO} &> /dev/null; then
+        warnmsg "initdb error with the command \"pg_createcluster ${PGVER} ${PG_INSTANCE} -D ${TO}\""
         exit
     fi
 fi
@@ -343,10 +343,10 @@ function check_mistake_run(){
 }
 
 function pg_port_pick(){
-    if [[ -f /etc/postgresql/"${PGVER}"/"${pg_instance}"/postgresql.conf ]]; then
-        PGPORT=$(sed -n 's/port.*=.*\([0-9]\{4\}\).*/\1/p' /etc/postgresql/"${PGVER}"/"${pg_instance}"/postgresql.conf | tail -1)
+    if [[ -f /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf ]]; then
+        PGPORT=$(sed -n 's/port.*=.*\([0-9]\{4\}\).*/\1/p' /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf | tail -1)
     else
-        error "port not found or missing /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf file"
+        error "port not found or missing /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf file"
     fi
 }
 
@@ -376,13 +376,13 @@ function cycle_simple(){
 function pg_stop_check(){
     # Use with function cycle_simple
     info "PostgreSQL check status"
-    /usr/bin/pg_ctlcluster ${PGVER} "${pg_instance}" status &> /dev/null
+    /usr/bin/pg_ctlcluster ${PGVER} "${PG_INSTANCE}" status &> /dev/null
     code=$?
     if [[ $code -eq 3 ]]; then
-        info "PostgreSQL instance ${pg_instance} not running"
+        info "PostgreSQL instance ${PG_INSTANCE} not running"
         status=ok
     elif [[ $code -eq 0 ]]; then
-        info "Wait PostgreSQL instance ${pg_instance} stop: wait ${sleep}s"
+        info "Wait PostgreSQL instance ${PG_INSTANCE} stop: wait ${sleep}s"
         sleep ${sleep}s
     elif [[ $code -eq 4 ]]; then
         info "${TO} is not a database cluster directory. May be its clean."
@@ -394,15 +394,15 @@ function pg_stop_check(){
 }
 
 function pg_stop(){
-    /usr/bin/pg_ctlcluster ${PGVER} "${pg_instance}" status &> /dev/null
+    /usr/bin/pg_ctlcluster ${PGVER} "${PG_INSTANCE}" status &> /dev/null
     code=$?
     if [[ $code -eq 0 ]]; then
         info "PostgreSQL stop"
-        /usr/bin/pg_ctlcluster ${PGVER} "${pg_instance}" stop -m fast &> /dev/null
+        /usr/bin/pg_ctlcluster ${PGVER} "${PG_INSTANCE}" stop -m fast &> /dev/null
         if [[ $? -eq 0 ]]; then
-            info "PostgreSQL instance ${pg_instance} stopped"
+            info "PostgreSQL instance ${PG_INSTANCE} stopped"
         else
-            warnmsg "PostgreSQL instance ${pg_instance} stop failed"
+            warnmsg "PostgreSQL instance ${PG_INSTANCE} stop failed"
         fi
     fi
 }
@@ -411,19 +411,19 @@ function pgisready(){
     info "pgisready port ${PGPORT}"
     pg_isready -p "${PGPORT}"
     if [[ $? -eq 0 ]]; then
-        info "PostgreSQL instance ${pg_instance} started and accepting connections"
+        info "PostgreSQL instance ${PG_INSTANCE} started and accepting connections"
         status=ok
     else
-        info "PostgreSQL instance ${pg_instance} no response"
-        warnmsg "PostgreSQL instance ${pg_instance} no response"
+        info "PostgreSQL instance ${PG_INSTANCE} no response"
+        warnmsg "PostgreSQL instance ${PG_INSTANCE} no response"
         sleep 3s
     fi
 }
 function pg_start(){
     info "PostgreSQL start"
-    /usr/bin/pg_ctlcluster ${PGVER} "${pg_instance}" start &> /dev/null
+    /usr/bin/pg_ctlcluster ${PGVER} "${PG_INSTANCE}" start &> /dev/null
     if [[ $? -ne 0 ]]; then
-        error "PostgreSQL instance ${pg_instance} start failed"
+        error "PostgreSQL instance ${PG_INSTANCE} start failed"
     else
         pgisready 1> /dev/null
     fi
@@ -496,7 +496,7 @@ function pg_data_validation(){
             info "Start data validation for database $db"
             if pgisready 1> /dev/null; then
                 info "starting pg_dump"
-                pg_dump -d ${db} --cluster=${PGVER}/${pg_instance} >> /dev/null
+                pg_dump -d ${db} --cluster=${PGVER}/${PG_INSTANCE} >> /dev/null
                 if [[ $? -ne 0 ]]; then
                     warnmsg "Data validation in the database $db - Failed"
                 else
@@ -504,7 +504,7 @@ function pg_data_validation(){
                     ok_dbArray+=("$db")
                 fi
             else
-                warnmsg "PostgreSQL instance ${pg_instance} no response"
+                warnmsg "PostgreSQL instance ${PG_INSTANCE} no response"
             fi
         done
 }
@@ -557,16 +557,16 @@ function amcheck(){
 function postgresql_conf(){
     # max_connections
     max_connections=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_connections | awk '{print $3}')
-    sed -ri "s/^(\s*)(max_connections =.*$)/\1max_connections = ${max_connections}/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
+    sed -ri "s/^(\s*)(max_connections =.*$)/\1max_connections = ${max_connections}/" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
     # max_worker_processes
     max_worker_processes=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_worker_processes | awk '{print $3}')
-    sed -ri "s/^(\s*)(#max_worker_processes =.*$)/\1max_worker_processes = ${max_worker_processes}/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
+    sed -ri "s/^(\s*)(#max_worker_processes =.*$)/\1max_worker_processes = ${max_worker_processes}/" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
     # max_prepared_transactions
     max_prepared_transactions=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_prepared_xacts | awk '{print $3}')
-    sed -ri "s/^(\s*)(#max_prepared_transactions =.*$)/\1max_prepared_transactions = ${max_prepared_transactions}/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
+    sed -ri "s/^(\s*)(#max_prepared_transactions =.*$)/\1max_prepared_transactions = ${max_prepared_transactions}/" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
     # max_locks_per_transaction
     max_locks_per_transaction=$(/usr/lib/postgresql/${PGVER}/bin/pg_controldata ${TO} | grep max_locks_per_xact | awk '{print $3}')
-    sed -ri "s/^(\s*)(#max_locks_per_transaction =.*$)/\1max_locks_per_transaction = ${max_locks_per_transaction}/" /etc/postgresql/${PGVER}/${pg_instance}/postgresql.conf
+    sed -ri "s/^(\s*)(#max_locks_per_transaction =.*$)/\1max_locks_per_transaction = ${max_locks_per_transaction}/" /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf
 }
 
 
@@ -579,14 +579,14 @@ pg_port_pick
 info "[STEP $((STEP++))]: Starting"
 
 if [[ "$NORESTORE" = "yes" ]]; then
-    info "skipping restore, using port $PGPORT Cluster ${PGVER}/${pg_instance} "
+    info "skipping restore, using port $PGPORT Cluster ${PGVER}/${PG_INSTANCE} "
 else
     info "Starting. Restore Type: ${restore_type_msg} FROM Stanza: ${FROM} ---> TO Directory: ${TO}"
     info "Starting. Restore Settings: ${RECOVERYTYPE} ${RECOVERYTARGET} ${BACKUPSET} ${DATNAME}"
     info "Starting. Run settings: Backup host: ${BACKUPHOST}"
     info "Starting. Run settings: Log: ${log}"
     info "Starting. Run settings: Lock run: ${lock}"
-    info "Starting. PostgreSQL instance: ${pg_instance}"
+    info "Starting. PostgreSQL instance: ${PG_INSTANCE}"
     info "Starting. PostgreSQL version: ${PGVER}"
     info "Starting. PostgreSQL PGPORT: ${PGPORT}"
     info "Starting. PostgreSQL Database Validation: ${CHECKDB}"
@@ -644,7 +644,7 @@ if [[ "${CLEAR}" = "yes" ]]; then
     pg_stop
     cycle_simple pg_stop_check
     if [[ $code -eq 3 ]]; then
-        pg_dropcluster ${PGVER} ${pg_instance}
+        pg_dropcluster ${PGVER} ${PG_INSTANCE}
         rm -rf ${TO}_remapped_tablespaces
     fi
 fi

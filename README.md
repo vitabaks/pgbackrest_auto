@@ -206,14 +206,12 @@ Debian/Ubuntu
 ###### PostgreSQL versions:
 all supported PostgreSQL versions
 
-:white_check_mark: tested, works fine: `PostgreSQL 9.4, 10, 11`
-
 ## Requirements
-pgbackrest >= 2.01
+pgbackrest >= 2.01, jq
 
 for `--checkdb`:
 - [amcheck_next](https://github.com/petergeoghegan/amcheck) extension/SQL version >=2 `(if PostgreSQL version <= 10)`.
-
+- `postgresql-$VER-pg-checksums` package (if PostgreSQL version <= 11)
 >You can use the packages for your PostgreSQL version from the [APT](https://apt.postgresql.org/pub/repos/apt/pool/main/a/amcheck/) repository
 
 for `--report`:
@@ -222,17 +220,20 @@ for `--report`:
 
 local `trust` for `postgres` (login by Unix domain socket) in the `pg_hba.conf` or use `.pgpass` file.
 
-Pre-init `initdb` PGDATA for your stanza (PostgreSQL cluster/instance)
-
 Run as user: `postgres`
 
 
 ## Installation
 1. Download and copy the `pgbackrest_auto` script to `/usr/bin/` directory
 2. Grant execute rights on the scripts
-3. Install `amcheck` package into your system
+3. Install `amcheck` package into your system (if PostgreSQL version <= 10)
 > the amcheck extension will be automatically installed to the restored databases
 
+## Logging
+By default, the script execution is written in syslog. Get the pgbackrest_auto log:
+```
+sudo grep pgbackrest_auto /var/log/syslog
+```
 
 ## License
 Licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.

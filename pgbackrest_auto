@@ -354,7 +354,6 @@ function cycle_simple(){
     status=
     cmd=$1
     attempt=1
-    info "cycle_simple command: $cmd"
     while [[ $attempt -le $limit ]]; do
         info "attempt: ${attempt}/${limit}"
         $cmd
@@ -406,8 +405,7 @@ function pg_stop(){
 }
 
 function pgisready(){
-    info "pgisready port ${PGPORT}"
-    if pg_isready -p "${PGPORT}"
+    if pg_isready -qp "${PGPORT}"
     then
         info "PostgreSQL instance ${PG_INSTANCE} started and accepting connections"
         status=ok
@@ -490,10 +488,10 @@ function pg_data_validation(){
         for db in $databases; do
             info "Start data validation for database $db"
             if pgisready 1> /dev/null; then
-                info "starting pg_dump"
-                if ! pg_dump -d "${db}" --cluster="${PGVER}"/"${PG_INSTANCE}" >> /dev/null
+                info "starting pg_dump -p "${port}" -d "$db" >> /dev/null"
+                if ! pg_dump -p "${port}" -d "$db" >> /dev/null
                 then
-                    warnmsg "Data validation in the database $db - Failed"
+                    error "Data validation in the database $db - Failed"
                 else
                     info "Data validation in the database $db - Successful"
                     ok_dbArray+=("$db")
@@ -509,7 +507,7 @@ function pg_checksums(){
     info "pg_checksums: starting data checksums validation"
     if ! /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums --check -D "${TO}"
     then
-        warnmsg "pg_checksums: data validation - Failed"
+        error "pg_checksums: data validation - Failed"
     else
         info "pg_checksums: data validation - Successful"
     fi

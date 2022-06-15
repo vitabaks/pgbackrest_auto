@@ -498,7 +498,6 @@ function pg_data_validation(){
                     error "Data validation in the database $db - Failed"
                 else
                     info "Data validation in the database $db - Successful"
-                    ok_dbArray+=("$db")
                 fi
             else
                 warnmsg "PostgreSQL instance ${PG_INSTANCE} no response"
@@ -532,7 +531,8 @@ function amcheck_exists(){
 
 # amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
 function amcheck(){
-    for db_name in "${ok_dbArray[@]}"; do
+    databases=$(bash -c "psql -p ${PGPORT} -tAXc \"select datname from pg_database where not datistemplate\"")
+    for db_name in $databases; do
         if pgisready 1> /dev/null; then
             if amcheck_exists; then
                 info "amcheck: verify the logical consistency of the structure of indexes and heap relations in the database $db_name"
@@ -627,19 +627,19 @@ else
         fi
     done
 fi
-# check with pg_dump >> /dev/null
-if [[ "${CHECKDB}" = "yes" ]]; then
+if [[ "${CHECKDB_MODE}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Validate for physical database corruption"
+    # check with pg_dump >> /dev/null
     pg_data_validation
 fi
-if  [[ "${CHECKDB}" = "yes" ]] || [[ "${CHECKSUMS}" = "yes" ]] || [[ "${AMCHECK}" = "yes" ]]; then
+if  [[ "${CHECKDB_MODE}" != "No" ]]; then
     info "[STEP $((STEP++))]: Validate for logical database corruption"
     # checksums
-    if [[ "${CHECKSUMS}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
+    if [[ "${CHECKDB_MODE}" = "yes" || "${CHECKDB_MODE}" = "checksums" ]]; then
     pg_checksums
     fi
     # amcheck
-    if [[ "${AMCHECK}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
+    if [[ "${CHECKDB_MODE}" = "yes" || "${CHECKDB_MODE}" = "amcheck" ]]; then
     amcheck
     fi
 fi

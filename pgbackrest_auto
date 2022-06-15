@@ -510,9 +510,9 @@ function pg_checksums(){
     info "pg_checksums: starting data checksums validation"
     if ! /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums -c -D "${TO}" 1> /dev/null
     then
-        error "pg_checksums: data validation - Failed"
+        error "pg_checksums: data checksums validation - Failed"
     else
-        info "pg_checksums: data validation - Successful"
+        info "pg_checksums: data checksums validation - Successful"
     fi
 }
 

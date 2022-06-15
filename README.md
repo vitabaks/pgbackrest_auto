@@ -59,7 +59,7 @@ pgbackrest --config=/tmp/pgbackrest_auto.conf --repo1-host=localhost --repo1-hos
 2022-06-15 14:14:13 INFO: Data validation in the database ota - Successful
 2022-06-15 14:14:13 INFO: [STEP 7]: Validate for logical database corruption
 2022-06-15 14:14:13 INFO: pg_checksums: starting data checksums validation
-2022-06-15 14:14:21 INFO: pg_checksums: data validation - Successful
+2022-06-15 14:14:21 INFO: pg_checksums: data checksums validation - Successful
 2022-06-15 14:14:22 INFO: amcheck: verify the logical consistency of the structure of indexes and heap relations in the database postgres
 2022-06-15 14:14:22 INFO: amcheck: verify the logical consistency of the structure of indexes and heap relations in the database epg
 2022-06-15 14:14:59 INFO: amcheck: verify the logical consistency of the structure of indexes and heap relations in the database ota

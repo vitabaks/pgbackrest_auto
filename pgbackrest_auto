@@ -414,7 +414,6 @@ function pgisready(){
         status=ok
     else
         warnmsg "PostgreSQL instance ${PG_INSTANCE} no response"
-        sleep 3s
     fi
 }
 
@@ -573,7 +572,18 @@ exec &> >(tee -a "${log}")
 pg_port_pick
 info "[STEP $((STEP++))]: Starting"
 if [[ "$NORESTORE" = "yes" ]]; then
-    info "Skipping restore, using port $PGPORT Cluster ${PGVER}/${PG_INSTANCE} "
+    info "Starting. Skipping restore."
+    info "Starting. Run settings: Log: ${log}"
+    info "Starting. Run settings: Lock run: ${lock}"
+    info "Starting. PostgreSQL instance: ${PG_INSTANCE}"
+    info "Starting. PostgreSQL version: ${PGVER}"
+    info "Starting. PostgreSQL port: ${PGPORT}"
+    info "Starting. PostgreSQL Database Validation: ${CHECKDB}"
+    if [[ "${CLEAR}" = "yes" ]]; then info "Starting. Clear Data Directory after restore: ${CLEAR}";fi
+    info "[STEP $((STEP++))]: PostgreSQL Starting"
+    if ! pgisready; then pg_start
+    cycle_simple pgisready
+    fi
 else
     info "Starting. Restore Type: ${restore_type_msg} FROM Stanza: ${FROM} --> TO Directory: ${TO}"
     info "Starting. Restore Settings: ${RECOVERYTYPE} ${RECOVERYTARGET} ${BACKUPSET} ${DATNAME}"
@@ -596,38 +606,40 @@ else
     postgresql_conf
     info "[STEP $((STEP++))]: PostgreSQL Starting for recovery"
     pg_start
+    cycle_simple pgisready
+    info "[STEP $((STEP++))]: PostgreSQL Recovery Checking"
+    # Expect recovery result
+    while true; do
+        info "Checking if restoring from archive is done"
+        pg_check_recovery
+        if [[ "${recovery}" = "ok" ]]; then
+            info "Restoring from archive is done"
+            info "Restore done"
+            break
+        elif [[ "${recovery}" = "er" ]]; then
+            warnmsg "[STEP [ER]: PostgreSQL Recovery Failed"
+            warnmsg "Restoring from archive failed"
+            pg_stop; check_errcode "exit"
+        else
+            continue
+        fi
+    done
 fi
-cycle_simple pgisready
-info "[STEP $((STEP++))]: PostgreSQL Recovery Checking"
-# Expect recovery result
-while true; do
-    info "Checking if restoring from archive is done"
-    pg_check_recovery
-    if [[ "${recovery}" = "ok" ]]; then
-        info "Restoring from archive is done"
-        info "Restore done"
-        break
-    elif [[ "${recovery}" = "er" ]]; then
-        warnmsg "[STEP [ER]: PostgreSQL Recovery Failed"
-        warnmsg "Restoring from archive failed"
-        pg_stop; check_errcode "exit"
-    else
-        continue
-    fi
-done
 # check with pg_dump >> /dev/null
-if [[ "${CHECKDB}" = "yes" && "${recovery}" = "ok" ]]; then
+if [[ "${CHECKDB}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Validate for physical database corruption"
     pg_data_validation
 fi
-info "[STEP $((STEP++))]: Validate for logical database corruption"
-# checksums
-if [[ "${CHECKSUMS}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
+if  [[ "${CHECKDB}" = "yes" ]] || [[ "${CHECKSUMS}" = "yes" ]] || [[ "${AMCHECK}" = "yes" ]]; then
+    info "[STEP $((STEP++))]: Validate for logical database corruption"
+    # checksums
+    if [[ "${CHECKSUMS}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
     pg_checksums
-fi
-# amcheck
-if [[ "${AMCHECK}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
+    fi
+    # amcheck
+    if [[ "${AMCHECK}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
     amcheck
+    fi
 fi
 # [ optional ] clear data directory
 if [[ "${CLEAR}" = "yes" ]]; then

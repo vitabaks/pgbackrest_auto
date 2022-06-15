@@ -297,8 +297,10 @@ then
     error "Not enough disk space for restore to $TO"
 fi
 
-# checkdb
-if [[ -z $CHECKDB ]]; then CHECKDB="No"; fi
+# checkdb_mode
+if [[ -z $CHECKDB ]]; then CHECKDB_MODE="No"; else CHECKDB_MODE="yes"; fi
+if [[ -z $CHECKDB && "${CHECKSUMS}" = "yes" ]]; then CHECKDB_MODE="checksums"; fi
+if [[ -z $CHECKDB && "${AMCHECK}" = "yes" ]]; then CHECKDB_MODE="amcheck"; fi
 
 # Variables for function "pgbackrest_exec()"
 if [[ -z $BACKUPHOST ]]; then BACKUPHOST="localhost"; fi
@@ -578,7 +580,7 @@ if [[ "$NORESTORE" = "yes" ]]; then
     info "Starting. PostgreSQL instance: ${PG_INSTANCE}"
     info "Starting. PostgreSQL version: ${PGVER}"
     info "Starting. PostgreSQL port: ${PGPORT}"
-    info "Starting. PostgreSQL Database Validation: ${CHECKDB}"
+    info "Starting. PostgreSQL Database Validation: ${CHECKDB_MODE}"
     if [[ "${CLEAR}" = "yes" ]]; then info "Starting. Clear Data Directory after restore: ${CLEAR}";fi
     info "[STEP $((STEP++))]: PostgreSQL Starting"
     if ! pgisready; then pg_start
@@ -593,7 +595,7 @@ else
     info "Starting. PostgreSQL instance: ${PG_INSTANCE}"
     info "Starting. PostgreSQL version: ${PGVER}"
     info "Starting. PostgreSQL port: ${PGPORT}"
-    info "Starting. PostgreSQL Database Validation: ${CHECKDB}"
+    info "Starting. PostgreSQL Database Validation: ${CHECKDB_MODE}"
     if [[ "${CLEAR}" = "yes" ]]; then info "Starting. Clear Data Directory after restore: ${CLEAR}";fi
     check_mistake_run
     info "[STEP $((STEP++))]: Stopping PostgreSQL"

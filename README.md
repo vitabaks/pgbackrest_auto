@@ -14,69 +14,62 @@ Databases that successfully passed the stage of physical validation additionally
 
 #### Example
 ```
-pgbackrest_auto --from=app-db --to=/bkpdata/10/app-db --backup-host=10.128.50.50 --pgver=10 --checkdb --clear --report
+pgbackrest_auto --from=epgdb --to=/bkpdata/rst/epgdb --checkdb
 ```
-###### script output:
+###### result:
 ```
-2019-06-17 15:57:50 INFO: [STEP 1]: Starting
-2019-06-17 15:57:50 INFO: Starting. Restore Type: Full PostgreSQL Restore FROM Stanza: app-db ---> TO Directory: /bkpdata/10/app-db
-2019-06-17 15:57:50 INFO: Starting. Restore Settings: immediate
-2019-06-17 15:57:50 INFO: Starting. Run settings: Backup host: 10.128.50.50
-2019-06-17 15:57:50 INFO: Starting. Run settings: Log: /var/log/pgbackrest/pgbackrest_auto-restore_app-db.log
-2019-06-17 15:57:50 INFO: Starting. Run settings: Lock run: /tmp/pgbackrest_auto_app-db.lock
-2019-06-17 15:57:50 INFO: Starting. PostgreSQL instance: app-db
-2019-06-17 15:57:50 INFO: Starting. PostgreSQL version: 10
-2019-06-17 15:57:50 INFO: Starting. PostgreSQL port: 7433
-2019-06-17 15:57:50 INFO: Starting. PostgreSQL Database Validation: yes
-2019-06-17 15:57:50 INFO: Starting. Clear Data Directory after restore: yes
-2019-06-17 15:57:50 WARN: Restoring to /bkpdata/10/app-db Waiting 30 seconds. The directory will be overwritten. If mistake, press ^C
-2019-06-17 15:58:20 INFO: [STEP 2]: Stopping PostgreSQL
-2019-06-17 15:58:20 INFO: attempt: 1/3600
-2019-06-17 15:58:20 INFO: PostgreSQL check status
-2019-06-17 15:58:20 INFO: /bkpdata/10/app-db is not a database cluster directory. May be its clean.
-2019-06-17 15:58:20 INFO: [STEP 3]: Restoring from backup
-2019-06-17 15:58:20 INFO: Restore from backup started. Type: Full PostgreSQL Restore
-2019-06-17 15:58:20 INFO: See detailed log in the file /var/log/pgbackrest/app-db-restore.log
-2019-06-17 16:09:56 INFO: Restore from backup done
-2019-06-17 16:09:56 INFO: [STEP 4]: PostgreSQL Starting for recovery
-2019-06-17 16:09:56 INFO: PostgreSQL start
-2019-06-17 16:10:02 INFO: attempt: 1/3600
-2019-06-17 16:10:03 INFO: PostgreSQL instance app-db started and accepting connections
-2019-06-17 16:10:03 INFO: [STEP 5]: PostgreSQL Recovery Checking
-2019-06-17 16:10:03 INFO: Checking if restoring from archive is done
-2019-06-17 16:10:03 INFO: Replayed: 2019-06-17 02:14:25.695946+03
-2019-06-17 16:10:03 INFO: Restoring from archive is done
-2019-06-17 16:10:03 INFO: Restore done
-2019-06-17 16:10:03 INFO: [STEP 6]: Validate for physical database corruption
-2019-06-17 16:10:03 INFO: Start data validation for database db1
-2019-06-17 16:12:22 INFO: Data validation in the database db1 - Successful
-2019-06-17 16:12:22 INFO: Start data validation for database db2
-2019-06-17 16:12:22 INFO: Data validation in the database db2 - Successful
-2019-06-17 16:12:22 INFO: Start data validation for database db3
-2019-06-17 16:12:28 INFO: Data validation in the database db3 - Successful
-2019-06-17 16:14:08 INFO: Start data validation for database postgres
-2019-06-17 16:14:09 INFO: Data validation in the database postgres - Successful
-2019-06-17 16:14:09 INFO: [STEP 7]: Validate for logical database corruption (with amcheck)
-2019-06-17 16:14:09 INFO: Verify the logical consistency of the structure of indexes and heap relations in the database db1
-2019-06-17 16:17:44 INFO: Verify the logical consistency of the structure of indexes and heap relations in the database db2
-2019-06-17 16:17:44 INFO: Verify the logical consistency of the structure of indexes and heap relations in the database db3
-2019-06-17 16:20:03 INFO: Verify the logical consistency of the structure of indexes and heap relations in the database postgres
-2019-06-17 16:20:04 INFO: [STEP 8]: Stopping PostgreSQL and Clear Data Directory
-2019-06-17 16:20:08 INFO: PostgreSQL stop
-2019-06-17 16:20:08 INFO: PostgreSQL instance app-db stopped
-2019-06-17 16:20:08 INFO: attempt: 1/3600
-2019-06-17 16:20:08 INFO: PostgreSQL check status
-2019-06-17 16:20:08 INFO: PostgreSQL instance app-db not running
-2019-06-17 16:20:09 INFO: Directory /bkpdata/10/app-db is cleared
-2019-06-17 16:20:09 INFO: [STEP 9]: Send report to mail address
+2022-06-15 14:13:13 INFO: [STEP 1]: Starting
+2022-06-15 14:13:13 INFO: Starting. Restore Type: Full PostgreSQL Restore FROM Stanza: epgdb --> TO Directory: /bkpdata/rst/epgdb
+2022-06-15 14:13:14 INFO: Starting. Restore Settings: immediate
+2022-06-15 14:13:14 INFO: Starting. Run settings: Backup host: localhost
+2022-06-15 14:13:14 INFO: Starting. Run settings: Log: /var/log/pgbackrest/pgbackrest_auto_epgdb.log
+2022-06-15 14:13:14 INFO: Starting. Run settings: Lock run: /tmp/pgbackrest_auto_epgdb.lock
+2022-06-15 14:13:14 INFO: Starting. PostgreSQL instance: epgdb
+2022-06-15 14:13:14 INFO: Starting. PostgreSQL version: 11
+2022-06-15 14:13:14 INFO: Starting. PostgreSQL port: 5432
+2022-06-15 14:13:14 INFO: Starting. PostgreSQL Database Validation: yes
+2022-06-15 14:13:14 WARN: Restoring to /bkpdata/rst/epgdb Waiting 30 seconds. The directory will be overwritten. If mistake, press ^C
+2022-06-15 14:13:44 INFO: [STEP 2]: Stopping PostgreSQL
+2022-06-15 14:13:44 INFO: attempt: 1/3600
+2022-06-15 14:13:44 INFO: PostgreSQL check status
+2022-06-15 14:13:44 INFO: PostgreSQL instance epgdb not running
+2022-06-15 14:13:44 INFO: [STEP 3]: Restoring from backup
+2022-06-15 14:13:44 INFO: Restore from backup started. Type: Full PostgreSQL Restore
+2022-06-15 14:13:44 INFO: See detailed log in the file /var/log/pgbackrest/epgdb-restore.log
+pgbackrest --config=/tmp/pgbackrest_auto.conf --repo1-host=localhost --repo1-host-user=postgres --stanza=epgdb --pg1-path=/bkpdata/rst/epgdb  --type=immediate --repo1-path=/bkpdata/pgbackrest --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=recovery_target_action=promote --tablespace-map-all=/bkpdata/rst/epgdb/remapped_tablespaces
+2022-06-15 14:13:52 INFO: Restore from backup done
+2022-06-15 14:13:52 INFO: [STEP 4]: PostgreSQL Starting for recovery
+2022-06-15 14:13:52 INFO: PostgreSQL start
+2022-06-15 14:14:02 INFO: attempt: 1/3600
+2022-06-15 14:14:03 INFO: PostgreSQL instance epgdb started and accepting connections
+2022-06-15 14:14:03 INFO: [STEP 5]: PostgreSQL Recovery Checking
+2022-06-15 14:14:03 INFO: Checking if restoring from archive is done
+2022-06-15 14:14:03 INFO: Replayed:
+2022-06-15 14:14:03 INFO: Restoring from archive is done
+2022-06-15 14:14:03 INFO: Restore done
+2022-06-15 14:14:03 INFO: [STEP 6]: Validate for physical database corruption
+2022-06-15 14:14:04 INFO: Start data validation for database postgres
+2022-06-15 14:14:04 INFO: ... starting pg_dump -p 5432 -d postgres >> /dev/null
+2022-06-15 14:14:06 INFO: Data validation in the database postgres - Successful
+2022-06-15 14:14:06 INFO: Start data validation for database epg
+2022-06-15 14:14:06 INFO: ... starting pg_dump -p 5432 -d epg >> /dev/null
+2022-06-15 14:14:12 INFO: Data validation in the database epg - Successful
+2022-06-15 14:14:12 INFO: Start data validation for database ota
+2022-06-15 14:14:12 INFO: ... starting pg_dump -p 5432 -d ota >> /dev/null
+2022-06-15 14:14:13 INFO: Data validation in the database ota - Successful
+2022-06-15 14:14:13 INFO: [STEP 7]: Validate for logical database corruption
+2022-06-15 14:14:13 INFO: pg_checksums: starting data checksums validation
+2022-06-15 14:14:21 INFO: pg_checksums: data validation - Successful
+2022-06-15 14:14:22 INFO: amcheck: verify the logical consistency of the structure of indexes and heap relations in the database postgres
+2022-06-15 14:14:22 INFO: amcheck: verify the logical consistency of the structure of indexes and heap relations in the database epg
+2022-06-15 14:14:59 INFO: amcheck: verify the logical consistency of the structure of indexes and heap relations in the database ota
+2022-06-15 14:15:23 INFO: Finish
 ```
 
 
 #### pgbackrest_auto --help
 ```
-/usr/bin/pgbackrest_auto
-
-Automatic Restore PostgreSQL from backup
+Automatic Restore and Validate for physical and logical database corruption
 
 Support three types of restore:
         1) Restore last backup  (recovery to earliest consistent point) [default]
@@ -85,7 +78,7 @@ Support three types of restore:
 
 Important: Run on the nodes on which you want to restore the backup
 
-Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --backup-host=HOST ] [ --pgver=( 94 | 10 ) ] [ --checkdb ] [ --clear ] [ --report ] ]
+Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --backup-host=HOST ] [ --pgver= ] [ --checkdb ] [ --clear ] [ --report ] ]
 
 
 --from=STANZANAME
@@ -93,7 +86,8 @@ Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datnam
 
 --to=DATA_DIRECTORY
         PostgreSQL Data directory Path to restore from a backup
-        Example: /var/lib/postgresql/11/rst
+        a PostgreSQL database cluster (PGDATA) will be automatically created (initdb) if it does not exist
+        Example: /bkpdata/rst/app-db
 
 --datname=DATABASE [...]
         Database name to be restored (After this you MUST drop other databases)
@@ -108,117 +102,108 @@ Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datnam
 
 --recovery-target=TIMELINE
         time - recovery point time. The time stamp up to which recovery will proceed.
-        Example: "2018-08-08 12:46:54"
+        if --recovery-type=time
+        Example: "2022-06-14 09:00:00"
 
 --backup-set=SET
         If you need to restore not the most recent backup. Example few days ago.
         Get info of backup. Login to pgbackrest server. User postgres
         pgbackrest --stanza=[STANZA NAME] info
         And get it. Example:
-                    incr backup: 20180807-212125F_20180808-050002I
-        This is the name of SET: 20180807-212125F_20180808-050002I
+                    incr backup: 20220611-000004F_20220614-000003D
+        This is the name of SET: 20220611-000004F_20220614-000003D
 
 --backup-host=HOST
         pgBacRest repository ip address (Use SSH Key-Based Authentication)
         localhost [default]
 
 --pgver=VERSION
-        PostgreSQL cluster (instance) version
-        94 | 95 | 96 | 10 [default] | 11 | 12
+        PostgreSQL cluster (instance) version [ optional ]
+        by default, the PostgreSQL version will be determined from the pgbackrest info
+
+--checksums
+        Check data checksums
+
+--amcheck
+        Validate Indexes (verify the logical consistency of the structure of indexes and heap relations)
 
 --checkdb
-        Validate for Physical and Logical Database Corruption (It work with only Full PostgreSQL Restore)
+        Validate for Physical and Logical Database Corruption (includes: pg_dump >> /dev/null, checksums, amcheck)
 
 --clear
         Clear PostgreSQL Data directory after Restore (the path was specified in the "--to" parameter ) [ optional ]
 
 --report
-        Send report to mail address (Specify smtp parameters in the /usr/bin/pgbackrest_auto file)
+        Send report to mail address
 
-
+--norestore
+        Do not restore a stanza but use an already existing cluster
 
 EXAMPLES:
 ( example stanza "app-db" , backup-host "localhost" )
 
-| Restore last backup.
+| Restore last backup:
 
-    # /usr/bin/pgbackrest_auto --from=app-db --to=/var/lib/postgresql/11/rst
+    /usr/bin/pgbackrest_auto --from=app-db --to=/bkpdata/rst/app-db
 
-| Restore latest backup (recover to the end of the archive stream).
+| Restore backup made a few days ago:
 
-    # /usr/bin/pgbackrest_auto --from=app-db --to=/var/lib/postgresql/11/rst --recovery-type=default
+    /usr/bin/pgbackrest_auto --from=app-db --to=/bkpdata/rst/app-db --backup-set=20220611-000004F_20220614-000003D
 
-| Restore backup made a few days ago.
+| Restore backup made a few days ago and pick time:
 
-    # /usr/bin/pgbackrest_auto --from=app-db --to=/var/lib/postgresql/11/rst --backup-set=20180807-212125F_20180808-050002I
+    /usr/bin/pgbackrest_auto --from=app-db --to=/bkpdata/rst/app-db --backup-set=20220611-000004F_20220614-000003D --recovery-type=time --recovery-target="2022-06-14 09:00:00"
 
-| Restore backup made a few days ago and pick time.
+| Restore backup made a few days ago and pick time. And we have restore only one database with the name "app_db":
 
-    # /usr/bin/pgbackrest_auto --from=app-db --to=/var/lib/postgresql/11/rst --backup-set=20180807-212125F_20180808-050002I --recovery-type=time --recovery-target="2018-08-08 12:46:54"
+    /usr/bin/pgbackrest_auto --from=app-db --to=/bkpdata/rst/app-db --backup-set=20220611-000004F_20220614-000003D --recovery-type=time --recovery-target="2022-06-14 09:00:00" --datname=app_db
 
-| Restore backup made a few days ago and pick time. And we have restore only one database with the name "app_db".
+| Restore and Validate of databases:
 
-    # /usr/bin/pgbackrest_auto --from=app-db --to=/var/lib/postgresql/11/rst --datname=app_db --backup-set=20180807-212125F_20180808-050002I --recovery-type=time --recovery-target="2018-08-08 12:46:54"
-
-| Restore and Validate of databases (for example: pgBacRest repository 10.128.64.50, PostgreSQL version 11)
-
-    # /usr/bin/pgbackrest_auto --from=app-db --to=/var/lib/postgresql/11/rst --backup-host=10.128.64.50 --pgver=11 --checkdb
+    /usr/bin/pgbackrest_auto --from=app-db --to=/bkpdata/rst/app-db --checkdb
 
 ```
 
 ---
 
- :bulb: You can use this script to daily (or weekly) automatically check your backups, immediately after the completion of the backup process.
+ :bulb: You can use this script to daily automatically check your backups, immediately after the completion of the backup process.
 
 ###### Example of Cron jobs:
 
 ```
 #=== pgbackrest - Backup PostgreSQL ====================
 
-01 00 * * 6 if pgbackrest --stanza=app-db --type=full backup; then pgbackrest_auto --from=app-db --to=/bkpdata/10/app-db --backup-host=10.128.50.50 --checkdb --clear --report; fi
-01 00 * * 0-5 if pgbackrest --stanza=app-db --type=diff backup; then pgbackrest_auto --from=app-db --to=/bkpdata/10/app-db --backup-host=10.128.50.50 --checkdb --clear --report; fi
+01 00 * * 6 if pgbackrest --stanza=app-db --type=full backup; then pgbackrest_auto --from=app-db --to=/bkpdata/rst/app-db --checkdb --clear --report; fi
+01 00 * * 0-5 if pgbackrest --stanza=app-db --type=diff backup; then pgbackrest_auto --from=app-db --to=/bkpdata/rst/app-db --checkdb --clear --report; fi
 
-30 00 * * 6 if pgbackrest --stanza=apdb-cluster --type=full backup; then pgbackrest_auto --from=apdb-cluster --to=/bkpdata/11/apdb-cluster --backup-host=10.128.50.50 --pgver=11 --checkdb --clear --report; fi
-30 00 * * 0-5 if pgbackrest --stanza=apdb-cluster --type=diff backup; then pgbackrest_auto --from=apdb-cluster --to=/bkpdata/11/apdb-cluster --backup-host=10.128.50.50 --pgver=11 --checkdb --clear --report; fi
+30 00 * * 6 if pgbackrest --stanza=apdb-cluster --type=full backup; then pgbackrest_auto --from=apdb-cluster --to=/bkpdata/rst/apdb-cluster --checkdb --clear --report; fi
+30 00 * * 0-5 if pgbackrest --stanza=apdb-cluster --type=diff backup; then pgbackrest_auto --from=apdb-cluster --to=/bkpdata/rst/apdb-cluster --checkdb --clear --report; fi
 
-00 01 * * 6 if pgbackrest --stanza=dbs-eu--type=full backup; then pgbackrest_auto --from=dbs-eu--to=/bkpdata/9.4/dbs-eu--backup-host=10.128.50.50 --pgver=94 --checkdb --clear --report; fi
-00 01 * * 0-5 if pgbackrest --stanza=dbs-eu--type=diff backup; then pgbackrest_auto --from=dbs-eu--to=/bkpdata/9.4/dbs-eu--backup-host=10.128.50.50 --pgver=94 --checkdb --clear --report; fi
+00 01 * * 6 if pgbackrest --stanza=dbs-eu --type=full backup; then pgbackrest_auto --from=dbs-eu--to=/bkpdata/rst/dbs-eu --checkdb --clear --report; fi
+00 01 * * 0-5 if pgbackrest --stanza=dbs-eu --type=diff backup; then pgbackrest_auto --from=dbs-eu--to=/bkpdata/rst/dbs-eu --checkdb --clear --report; fi
 
 #=======================================================
-```
-
-> *I recommend to pre-init PGDATA for each stanza (PostgreSQL clusters)*
-
-```
-$ pg_lsclusters
-Ver Cluster     Port Status Owner    Data directory                  Log file
-9.4 dbs-eu      7435 down   postgres /bkpdata/9.4/dbs-eu       /var/log/postgresql/postgresql-9.4-app-eu.log
-10 app-db       7433 down   postgres /bkpdata/10/app-db        /var/log/postgresql/postgresql-10-app-db.log
-11 apdb-cluster 7434 down   postgres /bkpdata/9.4/apdb-cluster /var/log/postgresql/postgresql-11-apdb-cluster.log
-...
 ```
 
 ## Compatibility
 Debian/Ubuntu
 
-:white_check_mark: tested, works fine: `Debian 8/9`
-
 ###### PostgreSQL versions:
 all supported PostgreSQL versions
 
 ## Requirements
-pgbackrest >= 2.01, jq
+`pgbackrest` and `jq` packages.
 
-for `--checkdb`:
-- [amcheck_next](https://github.com/petergeoghegan/amcheck) extension/SQL version >=2 `(if PostgreSQL version <= 10)`.
-- `postgresql-$VER-pg-checksums` package (if PostgreSQL version <= 11)
->You can use the packages for your PostgreSQL version from the [APT](https://apt.postgresql.org/pub/repos/apt/pool/main/a/amcheck/) repository
+for `--checksums` (and `--checkdb`):
+  - `postgresql-<version>-pg-checksums` package (if PostgreSQL version <= 11)
+
+for `--amcheck` (and `--checkdb`):
+  - `postgresql-<version>-amcheck` package (if PostgreSQL version <= 10)
+    (_the amcheck extension will be automatically installed to the restored databases_)
 
 for `--report`:
-- sendemail
-- Specify smtp parameters `smtp_server`, `mail_from`, `mail_to` in the `/usr/bin/pgbackrest_auto` file
-
-local `trust` for `postgres` (login by Unix domain socket) in the `pg_hba.conf` or use `.pgpass` file.
+  - `sendemail` package
+  - specify smtp parameters `smtp_server`, `mail_from`, `mail_to` in the pgbackrest_auto script file.
 
 Run as user: `postgres`
 
@@ -226,11 +211,20 @@ Run as user: `postgres`
 ## Installation
 1. Download and copy the `pgbackrest_auto` script to `/usr/bin/` directory
 2. Grant execute rights on the scripts
-3. Install `amcheck` package into your system (if PostgreSQL version <= 10)
-> the amcheck extension will be automatically installed to the restored databases
+
+Example:
+```
+wget https://raw.githubusercontent.com/vitabaks/pgbackrest_auto/master/pgbackrest_auto
+sudo mv pgbackrest_auto /usr/bin/
+sudo chown postgres:postgres /usr/bin/pgbackrest_auto
+sudo chmod 750 /usr/bin/pgbackrest_auto
+```
+
 
 ## Logging
-By default, the script execution is written in syslog. Get the pgbackrest_auto log:
+Log file: `/var/log/pgbackrest/pgbackrest_auto_<STANZANAME>.log`
+
+In addition, the script execution is written in syslog. Get the pgbackrest_auto log:
 ```
 sudo grep pgbackrest_auto /var/log/syslog
 ```

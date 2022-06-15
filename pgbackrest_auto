@@ -616,10 +616,8 @@ else
         pg_check_recovery
         if [[ "${recovery}" = "ok" ]]; then
             info "Restoring from archive is done"
-            info "Restore done"
             break
         elif [[ "${recovery}" = "er" ]]; then
-            warnmsg "[STEP [ER]: PostgreSQL Recovery Failed"
             warnmsg "Restoring from archive failed"
             pg_stop; check_errcode "exit"
         else

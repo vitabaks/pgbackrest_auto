@@ -1,10 +1,10 @@
 #!/bin/bash
 # Author: Vitaliy Kukharik (vitabaks@gmail.com)
-# Title: /usr/bin/pgbackrest_auto - Automatic Restore PostgreSQL from backup
+# Title: /usr/bin/pgbackrest_auto - Automatic Restore and Validate for physical and logical database corruption
 
 # Dependencies: OS Debian/Ubuntu, PostgreSQL >= 9.4, pgbackrest >= 2.01, "jq" package;
-# for "--checksums" (and "--checkdb"): postgresql-$PGVER-pg-checksums package (if PostgreSQL version <= 11)
-# for "--amcheck" (and "--checkdb"): amcheck_next extension/SQL version >=2 (if PostgreSQL version <= 10)
+# for "--checksums" (and "--checkdb"): postgresql-<version>-pg-checksums package (if PostgreSQL version <= 11)
+# for "--amcheck" (and "--checkdb"): postgresql-<version>-amcheck package (if PostgreSQL version <= 10)
 # for "--report": sendemail
 # Run as user: postgres
 
@@ -105,9 +105,7 @@ done
 
 function help(){
 echo -e "
-$0
-
-Automatic Restore PostgreSQL from backup
+Automatic Restore and Validate for physical and logical database corruption
 
 Support three types of restore:
         1) Restore last backup  (recovery to earliest consistent point) [default]
@@ -116,7 +114,7 @@ Support three types of restore:
 
 Important: Run on the nodes on which you want to restore the backup
 
-Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --backup-host=HOST ] [ --pgver=( 94 | 10 ) ] [ --checkdb ] [ --clear ] [ --report ] ]
+Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --backup-host=HOST ] [ --pgver= ] [ --checkdb ] [ --clear ] [ --report ] ]
 
 
 --from=STANZANAME
@@ -124,7 +122,8 @@ Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ -
 
 --to=DATA_DIRECTORY
         PostgreSQL Data directory Path to restore from a backup
-        Example: /var/lib/postgresql/11/rst
+        a PostgreSQL database cluster (PGDATA) will be automatically created (initdb) if it does not exist
+        Example: /bkpdata/rst/app-db
 
 --datname=DATABASE [...]
         Database name to be restored (After this you MUST drop other databases)
@@ -139,15 +138,16 @@ Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ -
 
 --recovery-target=TIMELINE
         time - recovery point time. The time stamp up to which recovery will proceed.
-        Example: \"2018-08-08 12:46:54\"
+        if --recovery-type=time
+        Example: \"2022-06-14 09:00:00\"
 
 --backup-set=SET
         If you need to restore not the most recent backup. Example few days ago.
         Get info of backup. Login to pgbackrest server. User postgres
         pgbackrest --stanza=[STANZA NAME] info
         And get it. Example:
-                    incr backup: 20180807-212125F_20180808-050002I
-        This is the name of SET: 20180807-212125F_20180808-050002I
+                    incr backup: 20220611-000004F_20220614-000003D
+        This is the name of SET: 20220611-000004F_20220614-000003D
 
 --backup-host=HOST
         pgBacRest repository ip address (Use SSH Key-Based Authentication)
@@ -155,6 +155,7 @@ Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ -
 
 --pgver=VERSION
         PostgreSQL cluster (instance) version [ optional ]
+        by default, the PostgreSQL version will be determined from the pgbackrest info
 
 --checksums
         Check data checksums
@@ -172,34 +173,30 @@ Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ -
         Send report to mail address
 
 --norestore
-        Do not restore a stanza but use an already existing cluster)
+        Do not restore a stanza but use an already existing cluster
 
 EXAMPLES:
 ( example stanza \"app-db\" , backup-host \"localhost\" )
 
-| Restore last backup.
+| Restore last backup:
 
-    # $0 --from=app-db --to=/var/lib/postgresql/11/rst
+    $0 --from=app-db --to=/bkpdata/rst/app-db
 
-| Restore latest backup (recover to the end of the archive stream).
+| Restore backup made a few days ago:
 
-    # $0 --from=app-db --to=/var/lib/postgresql/11/rst --recovery-type=default
+    $0 --from=app-db --to=/bkpdata/rst/app-db --backup-set=20220611-000004F_20220614-000003D
 
-| Restore backup made a few days ago.
+| Restore backup made a few days ago and pick time:
 
-    # $0 --from=app-db --to=/var/lib/postgresql/11/rst --backup-set=20180807-212125F_20180808-050002I
+    $0 --from=app-db --to=/bkpdata/rst/app-db --backup-set=20220611-000004F_20220614-000003D --recovery-type=time --recovery-target=\"2022-06-14 09:00:00\"
 
-| Restore backup made a few days ago and pick time.
+| Restore backup made a few days ago and pick time. And we have restore only one database with the name \"app_db\":
 
-    # $0 --from=app-db --to=/var/lib/postgresql/11/rst --backup-set=20180807-212125F_20180808-050002I --recovery-type=time --recovery-target=\"2018-08-08 12:46:54\"
+    $0 --from=app-db --to=/bkpdata/rst/app-db --backup-set=20220611-000004F_20220614-000003D --recovery-type=time --recovery-target=\"2022-06-14 09:00:00\" --datname=app_db
 
-| Restore backup made a few days ago and pick time. And we have restore only one database with the name \"app_db\".
+| Restore and Validate of databases:
 
-    # $0 --from=app-db --to=/var/lib/postgresql/11/rst --datname=app_db --backup-set=20180807-212125F_20180808-050002I --recovery-type=time --recovery-target=\"2018-08-08 12:46:54\"
-
-| Restore and Validate of databases (for example: pgBacRest repository 10.128.64.50, PostgreSQL version 11)
-
-    # $0 --from=app-db --to=/var/lib/postgresql/11/rst --backup-host=10.128.64.50 --pgver=11 --checkdb
+    $0 --from=app-db --to=/bkpdata/rst/app-db --checkdb
 "
 exit
 }
@@ -227,8 +224,6 @@ then
     exit
 fi
 
-sleep=1
-limit=3600
 # Log file
 log="/var/log/pgbackrest/pgbackrest_auto_${FROM}.log"
 # Lock file
@@ -360,6 +355,7 @@ function cycle_simple(){
     status=
     cmd=$1
     attempt=1
+    limit=3600
     while [[ $attempt -le $limit ]]; do
         info "attempt: ${attempt}/${limit}"
         $cmd
@@ -377,6 +373,7 @@ function cycle_simple(){
 }
 
 function pg_stop_check(){
+    sleep=10
     # Use with function cycle_simple
     info "PostgreSQL check status"
     /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" status &> /dev/null

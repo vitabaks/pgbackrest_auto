@@ -1,6 +1,6 @@
 ## Version 1.3 (Unreleased)
 
- - use pg_checksums for "--checksums" and "--checkdb" (requires postgresql-$PGVER-pg-checksums package for PostgreSQL version 11 and below)
+ - use pg_checksums for "--checksums" and "--checkdb" (requires `postgresql-<version>-pg-checksums` package for PostgreSQL version 11 and below)
  - automatic determine Postgres version from pgbackrest info
  - automatic create a new postgres cluster (initdb) to restore to the path specified in the "--to" option (if it does not exist)
  - determine postgresql parameters from pg_controldata and configure postgresql.conf accordingly after restore

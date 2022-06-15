@@ -6,7 +6,6 @@
 # for "--checksums" (and "--checkdb"): postgresql-$PGVER-pg-checksums package (if PostgreSQL version <= 11)
 # for "--amcheck" (and "--checkdb"): amcheck_next extension/SQL version >=2 (if PostgreSQL version <= 10)
 # for "--report": sendemail
-# Requirements: local trust for postgres (login by Unix domain socket) in the pg_hba.conf or ".pgpass"
 # Run as user: postgres
 
 ver="1.3"
@@ -50,9 +49,7 @@ function error(){
     # sendmail
     if [[ "${REPORT}" = "yes" ]]; then sendmail; fi
     # remove lock file
-    if [ -f "${lock}" ]; then
-    rm "${lock}"
-    fi
+    if [ -f "${lock}" ]; then rm "${lock}"; fi
     exit 1
 }
 
@@ -232,9 +229,9 @@ fi
 
 sleep=1
 limit=3600
-# Log - add date to prevent rotation
+# Log file
 log="/var/log/pgbackrest/pgbackrest_auto_${FROM}.log"
-# Global lock
+# Lock file
 lock="/tmp/pgbackrest_auto_${FROM}.lock"
 exec 9>"${lock}"
 flock -n 9 || exit

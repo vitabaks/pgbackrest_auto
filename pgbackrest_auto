@@ -523,7 +523,7 @@ function amcheck_exists(){
     else
         extension='amcheck'
     fi
-    if ! psql -v "ON_ERROR_STOP" -p "${PGPORT}" -U postgres -d "$db_name" -tAXc "CREATE EXTENSION if not exists $extension" 1> /dev/null
+    if ! psql -v "ON_ERROR_STOP" -p "${PGPORT}" -U postgres -d "$db_name" -tAXc "CREATE EXTENSION if not exists $extension" &> /dev/null
     then
         error "CREATE EXTENSION $extension failed"
     fi

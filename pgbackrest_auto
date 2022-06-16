@@ -255,6 +255,9 @@ PG_INSTANCE=$(bash -c "echo ${TO} | sed -e 's|.*/||g'")
 if [[ -z $PGVER ]]; then
     # get the postgres version from stanza
     PGVER=$(pgbackrest info --stanza="${FROM}" --output=json | jq -r '.[].db[-1]."version"')
+    if [[ "$PGVER" = "null" ]]; then
+        error "could not determine the postgres version using \"pgbackrest info --stanza=${FROM}\""
+    fi
 fi
 
 # check if pg_checksums exists (for PostgreSQL version <= 11)

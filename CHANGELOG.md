@@ -1,13 +1,13 @@
 ## Version 1.3 (Unreleased)
 
- - use pg_checksums for "--checksums" and "--checkdb" (requires `postgresql-<version>-pg-checksums` package for PostgreSQL version 11 and below)
+ - check data checksums with pg_checksums. "--checksums" (and "--checkdb") option (requires `postgresql-<version>-pg-checksums` package for PostgreSQL version 11 and below)
+ - "--dummy-dump" option. Verify that data can be read out. Check with pg_dump >> /dev/null
+ - "--amcheck" option. Validate Indexes (verify the logical consistency of the structure of indexes and heap relations)
+ - "--norestore" option to check already existing clusters
  - automatic determine Postgres version from pgbackrest info
  - automatic create a new postgres cluster (initdb) to restore to the path specified in the "--to" option (if it does not exist)
  - determine postgresql parameters from pg_controldata and configure postgresql.conf accordingly after restore
  - compare DB and filesystem size before restore
- - add norestore option to check already existing clusters
- - error if create extension failes
- - add an optional amcheck parameter within checkdb
  - remove colors in log messages
  - remove dependencies - gawk, ansi2html.sh
  - a little code refactoring

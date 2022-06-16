@@ -81,6 +81,9 @@ while getopts ":-:" optchar; do
         pgver=* )
             PGVER=${OPTARG#*=}
             ;;
+        dummy-dump )
+            DUMMYDUMP=yes
+            ;;
         checksums )
             CHECKSUMS=yes
             ;;
@@ -157,6 +160,9 @@ Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ -
         PostgreSQL cluster (instance) version [ optional ]
         by default, the PostgreSQL version will be determined from the pgbackrest info
 
+--dummy-dump
+        Verify that data can be read out. Check with pg_dump >> /dev/null
+
 --checksums
         Check data checksums
 
@@ -164,7 +170,7 @@ Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ -
         Validate Indexes (verify the logical consistency of the structure of indexes and heap relations)
 
 --checkdb
-        Validate for Physical and Logical Database Corruption (includes: pg_dump >> /dev/null, checksums, amcheck)
+        Validate for Physical and Logical Database Corruption (includes: dummy-dump, checksums, amcheck)
 
 --clear
         Clear PostgreSQL Data directory after Restore (the path was specified in the \"--to\" parameter ) [ optional ]
@@ -298,9 +304,13 @@ then
 fi
 
 # checkdb_mode
-if [[ -z $CHECKDB ]]; then CHECKDB_MODE="No"; else CHECKDB_MODE="yes"; fi
-if [[ -z $CHECKDB && "${CHECKSUMS}" = "yes" ]]; then CHECKDB_MODE="checksums"; fi
-if [[ -z $CHECKDB && "${AMCHECK}" = "yes" ]]; then CHECKDB_MODE="amcheck"; fi
+if [[ -z $CHECKDB ]]; then 
+    [[ "${DUMMYDUMP}" = "yes" ]] && CHECKDB_MODE+="dummy-dump "
+    [[ "${CHECKSUMS}" = "yes" ]] && CHECKDB_MODE+="checksums "
+    [[ "${AMCHECK}" = "yes" ]] && CHECKDB_MODE+="amcheck "
+    if [[ -z $DUMMYDUMP && -z $CHECKSUMS && -z $AMCHECK ]]; then CHECKDB_MODE="No"; fi
+else CHECKDB_MODE="yes"
+fi
 
 # Variables for function "pgbackrest_exec()"
 if [[ -z $BACKUPHOST ]]; then BACKUPHOST="localhost"; fi
@@ -487,7 +497,8 @@ function pg_check_recovery(){
     fi
 }
 
-function pg_data_validation(){
+# verify that data can be read out. Check with pg_dump >> /dev/null
+function dummy_dump(){
     databases=$(bash -c "psql -p ${PGPORT} -tAXc \"select datname from pg_database where not datistemplate\"")
         for db in $databases; do
             info "Start data validation for database $db"
@@ -505,7 +516,7 @@ function pg_data_validation(){
         done
 }
 
-# pg_checksums
+# checksums - check data checksums
 function pg_checksums(){
     info "pg_checksums: starting data checksums validation"
     if ! /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums -c -D "${TO}" 1> /dev/null
@@ -625,19 +636,19 @@ else
         fi
     done
 fi
-if [[ "${CHECKDB_MODE}" = "yes" ]]; then
+if [[ "${CHECKDB_MODE}" != "No" ]]; then
+    if [[ "${CHECKDB}" = "yes" || "${DUMMYDUMP}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Validate for physical database corruption"
-    # check with pg_dump >> /dev/null
-    pg_data_validation
-fi
-if  [[ "${CHECKDB_MODE}" != "No" ]]; then
+    # verify that data can be read out. Check with pg_dump >> /dev/null
+    dummy_dump
+    fi
     info "[STEP $((STEP++))]: Validate for logical database corruption"
-    # checksums
-    if [[ "${CHECKDB_MODE}" = "yes" || "${CHECKDB_MODE}" = "checksums" ]]; then
+    # checksums - check data checksums
+    if [[ "${CHECKDB}" = "yes" || "${CHECKSUMS}" = "yes" ]]; then
     pg_checksums
     fi
-    # amcheck
-    if [[ "${CHECKDB_MODE}" = "yes" || "${CHECKDB_MODE}" = "amcheck" ]]; then
+    # amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
+    if [[ "${CHECKDB}" = "yes" || "${AMCHECK}" = "yes" ]]; then
     amcheck
     fi
 fi

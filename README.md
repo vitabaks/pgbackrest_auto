@@ -121,6 +121,9 @@ Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datnam
         PostgreSQL cluster (instance) version [ optional ]
         by default, the PostgreSQL version will be determined from the pgbackrest info
 
+--dummy-dump
+        Verify that data can be read out. Check with pg_dump >> /dev/null
+
 --checksums
         Check data checksums
 
@@ -128,7 +131,7 @@ Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datnam
         Validate Indexes (verify the logical consistency of the structure of indexes and heap relations)
 
 --checkdb
-        Validate for Physical and Logical Database Corruption (includes: pg_dump >> /dev/null, checksums, amcheck)
+        Validate for Physical and Logical Database Corruption (includes: dummy-dump, checksums, amcheck)
 
 --clear
         Clear PostgreSQL Data directory after Restore (the path was specified in the "--to" parameter ) [ optional ]

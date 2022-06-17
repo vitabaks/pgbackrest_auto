@@ -1,4 +1,4 @@
-## Version 1.3 (Unreleased)
+## Version 1.3 (17 June 2022)
 
  - check data checksums with pg_checksums. "--checksums" (and "--checkdb") option (requires `postgresql-<version>-pg-checksums` package for PostgreSQL version 11 and below)
  - "--dummy-dump" option. Verify that data can be read out. Check with pg_dump >> /dev/null

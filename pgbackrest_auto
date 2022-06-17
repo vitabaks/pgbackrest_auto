@@ -522,8 +522,10 @@ function dummy_dump(){
 function pg_checksums(){
     if pgisready 1> /dev/null; then pg_stop cycle_simple pg_stop_check; fi
     info "pg_checksums: starting data checksums validation"
-    if ! /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums -c -D "${TO}" 1> /dev/null
+    pg_checksums_result=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_checksums -c -D "${TO}" | grep "Bad checksums")
+    if [[ $pg_checksums_result != "Bad checksums:  0" ]]
     then
+        warnmsg "pg_checksums: data checksums validation result: $pg_checksums_result"
         error "pg_checksums: data checksums validation - Failed"
     else
         info "pg_checksums: data checksums validation - Successful"

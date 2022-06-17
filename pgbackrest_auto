@@ -508,7 +508,7 @@ function dummy_dump(){
             info "Start data validation for database $db"
             if pgisready 1> /dev/null; then
                 info "... starting pg_dump -p ${PGPORT} -d $db >> /dev/null"
-                if ! pg_dump -p "${PGPORT}" -d "$db" >> /dev/null
+                if ! /usr/lib/postgresql/"${PGVER}"/bin/pg_dump -p "${PGPORT}" -d "$db" >> /dev/null
                 then
                     error "Data validation in the database $db - Failed"
                 else

@@ -513,8 +513,6 @@ function dummy_dump(){
                 else
                     info "Data validation in the database $db - Successful"
                 fi
-            else
-                warnmsg "PostgreSQL instance ${PG_INSTANCE} no response"
             fi
         done
 }

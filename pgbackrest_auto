@@ -8,7 +8,7 @@
 # for "--report": sendemail
 # Run as user: postgres
 
-ver="1.3"
+ver="1.3.1"
 
 # variables for function "sendmail()"
 smtp_server="10.128.64.5:25"
@@ -502,6 +502,7 @@ function pg_check_recovery(){
 
 # verify that data can be read out. Check with pg_dump >> /dev/null
 function dummy_dump(){
+    if ! pgisready 1> /dev/null; then pg_start cycle_simple pgisready; fi
     databases=$(bash -c "psql -p ${PGPORT} -tAXc \"select datname from pg_database where not datistemplate\"")
         for db in $databases; do
             info "Start data validation for database $db"
@@ -519,6 +520,7 @@ function dummy_dump(){
 
 # checksums - check data checksums
 function pg_checksums(){
+    if pgisready 1> /dev/null; then pg_stop cycle_simple pg_stop_check; fi
     info "pg_checksums: starting data checksums validation"
     if ! /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums -c -D "${TO}" 1> /dev/null
     then
@@ -543,6 +545,7 @@ function amcheck_exists(){
 
 # amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
 function amcheck(){
+    if ! pgisready 1> /dev/null; then pg_start cycle_simple pgisready; fi
     databases=$(bash -c "psql -p ${PGPORT} -tAXc \"select datname from pg_database where not datistemplate\"")
     for db_name in $databases; do
         if pgisready 1> /dev/null; then
@@ -638,18 +641,19 @@ else
     done
 fi
 if [[ "${CHECKDB_MODE}" != "No" ]]; then
-    if [[ "${CHECKDB}" = "yes" || "${DUMMYDUMP}" = "yes" ]]; then
-    info "[STEP $((STEP++))]: Validate for physical database corruption"
-    # verify that data can be read out. Check with pg_dump >> /dev/null
-    dummy_dump
-    fi
-    info "[STEP $((STEP++))]: Validate for logical database corruption"
     # checksums - check data checksums
     if [[ "${CHECKDB}" = "yes" || "${CHECKSUMS}" = "yes" ]]; then
+    info "[STEP $((STEP++))]: Verify data checksums"
     pg_checksums
+    fi
+    # verify that data can be read out. Check with pg_dump >> /dev/null
+    if [[ "${CHECKDB}" = "yes" || "${DUMMYDUMP}" = "yes" ]]; then
+    info "[STEP $((STEP++))]: Verify that data can be read out"
+    dummy_dump
     fi
     # amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
     if [[ "${CHECKDB}" = "yes" || "${AMCHECK}" = "yes" ]]; then
+    info "[STEP $((STEP++))]: Verify indexes"
     amcheck
     fi
 fi

@@ -1,3 +1,9 @@
+## Version 1.3.1 (17 June 2022)
+
+- stop postgres before running pg_checksums
+- function dummy_dump: specify the full path to pg_dump
+- function pg_checksums: the logic of processing the test result has been changed
+
 ## Version 1.3 (17 June 2022)
 
  - check data checksums with pg_checksums. "--checksums" (and "--checkdb") option (requires `postgresql-<version>-pg-checksums` package for PostgreSQL version 11 and below)

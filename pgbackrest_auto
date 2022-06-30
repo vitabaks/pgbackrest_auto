@@ -427,8 +427,10 @@ function pgisready(){
     then
         info "PostgreSQL instance ${PG_INSTANCE} started and accepting connections"
         status=ok
+        return 0
     else
         warnmsg "PostgreSQL instance ${PG_INSTANCE} no response"
+        return 1
     fi
 }
 
@@ -496,7 +498,7 @@ function pg_check_recovery(){
         sleep 10
     else
     # Is everything all right? check connection with PostgreSQL
-        pgisready 1> /dev/null; check_errcode "exit"
+        pgisready 1> /dev/null || check_errcode "exit"
         recovery=er
     fi
 }

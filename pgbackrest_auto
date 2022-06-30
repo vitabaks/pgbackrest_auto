@@ -497,6 +497,7 @@ function pg_check_recovery(){
     else
     # Is everything all right? check connection with PostgreSQL
         pgisready 1> /dev/null; check_errcode "exit"
+        recovery=er
     fi
 }
 
@@ -637,8 +638,6 @@ else
         elif [[ "${recovery}" = "er" ]]; then
             warnmsg "Restoring from archive failed"
             pg_stop; check_errcode "exit"
-        else
-            continue
         fi
     done
 fi

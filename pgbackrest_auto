@@ -415,7 +415,7 @@ function pg_stop(){
     code=$?
     if [[ $code -eq 0 ]]; then
         info "PostgreSQL stop"
-        if /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" stop -m fast &> /dev/null
+        if /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" stop -m fast -- --wait --timeout=600 &> /dev/null
         then
             info "PostgreSQL instance ${PG_INSTANCE} stopped"
         else
@@ -438,7 +438,7 @@ function pgisready(){
 
 function pg_start(){
     info "PostgreSQL start"
-    if ! /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" start &> /dev/null
+    if ! /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" start -- --wait --timeout=600 &> /dev/null
     then
         error "PostgreSQL instance ${PG_INSTANCE} start failed"
     else

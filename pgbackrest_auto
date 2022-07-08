@@ -468,7 +468,7 @@ function pgbackrest_exec(){
     if bash -c "pgbackrest --config=${backup_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}/remapped_tablespaces"
     then
         info "Restore from backup done"
-        sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' ${zbx_status_file}
+        sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' "${zbx_status_file}"
     else
         error "Restore from backup failed"
     fi
@@ -509,7 +509,7 @@ function pg_check_recovery(){
 # verify that data can be read out. Check with pg_dump >> /dev/null
 function dummy_dump(){
     if ! pgisready 1> /dev/null; then pg_start cycle_simple pgisready; fi
-    sed -i 's/Data_validation=0/Data_validation=1/g' ${zbx_status_file}
+    sed -i 's/Data_validation=0/Data_validation=1/g' "${zbx_status_file}"
     databases=$(bash -c "psql -p ${PGPORT} -tAXc \"select datname from pg_database where not datistemplate\"")
         for db in $databases; do
             info "Start data validation for database $db"
@@ -518,7 +518,7 @@ function dummy_dump(){
                 if ! /usr/lib/postgresql/"${PGVER}"/bin/pg_dump -p "${PGPORT}" -d "$db" >> /dev/null
                 then
                     error "Data validation in the database $db - Failed"
-                    sed -i 's/Data_validation=1/Data_validation=0/g' ${zbx_status_file}
+                    sed -i 's/Data_validation=1/Data_validation=0/g' "${zbx_status_file}"
                 else
                     info "Data validation in the database $db - Successful"
                 fi
@@ -530,12 +530,12 @@ function dummy_dump(){
 function pg_checksums(){
     if pgisready 1> /dev/null; then pg_stop cycle_simple pg_stop_check; fi
     info "pg_checksums: starting data checksums validation"
-    sed -i 's/PG_checksums_validation=0/PG_checksums_validation=1/g' ${zbx_status_file}
+    sed -i 's/PG_checksums_validation=0/PG_checksums_validation=1/g' "${zbx_status_file}"
     pg_checksums_result=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_checksums -c -D "${TO}" | grep "Bad checksums")
     if [[ $pg_checksums_result != "Bad checksums:  0" ]]
     then
         warnmsg "pg_checksums: data checksums validation result: $pg_checksums_result"
-        sed -i 's/PG_checksums_validation=1/PG_checksums_validation=0/g' ${zbx_status_file}
+        sed -i 's/PG_checksums_validation=1/PG_checksums_validation=0/g' "${zbx_status_file}"
         error "pg_checksums: data checksums validation - Failed"
     else
         info "pg_checksums: data checksums validation - Successful"
@@ -558,7 +558,7 @@ function amcheck_exists(){
 # amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
 function amcheck(){
     if ! pgisready 1> /dev/null; then pg_start cycle_simple pgisready; fi
-    sed -i 's/Amcheck_validation=0/Amcheck_validation=1/g' ${zbx_status_file}
+    sed -i 's/Amcheck_validation=0/Amcheck_validation=1/g' "${zbx_status_file}"
     databases=$(bash -c "psql -p ${PGPORT} -tAXc \"select datname from pg_database where not datistemplate\"")
     for db_name in $databases; do
         if pgisready 1> /dev/null; then
@@ -570,7 +570,7 @@ function amcheck(){
                     if ! psql -v ON_ERROR_STOP=on -p "${PGPORT}" -d "$db_name" -tAXc "SELECT bt_index_parent_check('${index}')" 1> /dev/null
                     then
                         warnmsg "amcheck: logical validation for index ${index} ( database $db_name ) - Failed"
-                        sed -i 's/Amcheck_validation=1/Amcheck_validation=0/g' ${zbx_status_file}
+                        sed -i 's/Amcheck_validation=1/Amcheck_validation=0/g' "${zbx_status_file}"
                     fi
                 done
             fi
@@ -603,7 +603,7 @@ exec &> >(tee -a "${log}")
 pg_port_pick
 info "[STEP $((STEP++))]: Starting"
 # Reset values in zabbix status file before new restore
-printf "Restore_from_backup=0\nRestoring_from_archive=0\nData_validation=0\nPG_checksums_validation=0\nAmcheck_validation=0\nResult_status=1" > ${zbx_status_file}
+printf "Restore_from_backup=0\nRestoring_from_archive=0\nData_validation=0\nPG_checksums_validation=0\nAmcheck_validation=0\nResult_status=1" > "${zbx_status_file}"
 if [[ "$NORESTORE" = "yes" ]]; then
     info "Starting. Skipping restore."
     info "Starting. Run settings: Log: ${log}"
@@ -617,8 +617,8 @@ if [[ "$NORESTORE" = "yes" ]]; then
     if ! pgisready; then pg_start
     cycle_simple pgisready
     fi
-    sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' ${zbx_status_file}
-    sed -i 's/Restoring_from_archive=0/Restore_from_archive=1/g' ${zbx_status_file}
+    sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' "${zbx_status_file}"
+    sed -i 's/Restoring_from_archive=0/Restore_from_archive=1/g' "${zbx_status_file}"
 else
     info "Starting. Restore Type: ${restore_type_msg} FROM Stanza: ${FROM} --> TO Directory: ${TO}"
     info "Starting. Restore Settings: ${RECOVERYTYPE} ${RECOVERYTARGET} ${BACKUPSET} ${DATNAME}"
@@ -649,7 +649,7 @@ else
         pg_check_recovery
         if [[ "${recovery}" = "ok" ]]; then
             info "Restoring from archive is done"
-            sed -i 's/Restoring_from_archive=0/Restore_from_archive=1/g' ${zbx_status_file}
+            sed -i 's/Restoring_from_archive=0/Restore_from_archive=1/g' "${zbx_status_file}"
             break
         elif [[ "${recovery}" = "er" ]]; then
             warnmsg "Restoring from archive failed"
@@ -663,21 +663,21 @@ if [[ "${CHECKDB_MODE}" != "No" ]]; then
     info "[STEP $((STEP++))]: Verify data checksums"
     pg_checksums
     else
-    sed -i 's/PG_checksums_validation=0/PG_checksums_validation=1/g' ${zbx_status_file}
+    sed -i 's/PG_checksums_validation=0/PG_checksums_validation=1/g' "${zbx_status_file}"
     fi
     # verify that data can be read out. Check with pg_dump >> /dev/null
     if [[ "${CHECKDB}" = "yes" || "${DUMMYDUMP}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Verify that data can be read out"
     dummy_dump
     else
-    sed -i 's/Data_validation=0/Data_validation=1/g' ${zbx_status_file}
+    sed -i 's/Data_validation=0/Data_validation=1/g' "${zbx_status_file}"
     fi
     # amcheck - verify the logical consistency of the structure of PostgreSQL B-Tree indexes
     if [[ "${CHECKDB}" = "yes" || "${AMCHECK}" = "yes" ]]; then
     info "[STEP $((STEP++))]: Verify indexes"
     amcheck
     else
-    sed -i 's/Amcheck_validation=0/Amcheck_validation=1/g' ${zbx_status_file}
+    sed -i 's/Amcheck_validation=0/Amcheck_validation=1/g' "${zbx_status_file}"
     fi
 fi
 # [ optional ] clear data directory
@@ -695,8 +695,8 @@ if [[ "${REPORT}" = "yes" ]]; then
 fi
 
 #set result status of restore for zabbix
-if grep -q 0 ${zbx_status_file}; then
-    sed -i 's/Result_status=1/Result_status=0/g' ${zbx_status_file}
+if grep -q 0 "${zbx_status_file}"; then
+    sed -i 's/Result_status=1/Result_status=0/g' "${zbx_status_file}"
 fi
 
 # remove lock file

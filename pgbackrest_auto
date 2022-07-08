@@ -232,8 +232,12 @@ fi
 
 # Log file
 log="/var/log/pgbackrest/pgbackrest_auto_${FROM}.log"
-# File contain status of restore for monitoring
+
+# Status file - contains status of restore for monitoring
 status_file="/var/log/pgbackrest/pgbackrest_auto_${FROM}.status"
+## 1 - success
+## 0 - error
+
 # Lock file
 lock="/tmp/pgbackrest_auto_${FROM}.lock"
 exec 9>"${lock}"
@@ -602,7 +606,7 @@ touch "${log}"
 exec &> >(tee -a "${log}")
 pg_port_pick
 info "[STEP $((STEP++))]: Starting"
-# Reset values in zabbix status file before new restore
+# Reset values in status file before new restore
 printf "Restore_from_backup=0\nRestoring_from_archive=0\nData_validation=0\nPG_checksums_validation=0\nAmcheck_validation=0\nResult_status=1" > "${status_file}"
 if [[ "$NORESTORE" = "yes" ]]; then
     info "Starting. Skipping restore."

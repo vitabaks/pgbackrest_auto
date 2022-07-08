@@ -694,8 +694,7 @@ if [[ "${REPORT}" = "yes" ]]; then
 fi
 
 #set result status of restore for zabbix
-grep --quiet 0 ${zbx_status_file}
-if [[ $? -eq 0 ]]; then
+if grep -q 0 ${zbx_status_file}; then
     sed -i 's/Result_status=1/Result_status=0/g' ${zbx_status_file}
 fi
 

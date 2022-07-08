@@ -455,8 +455,8 @@ function pgbackrest_exec(){
     else
     pgbackrest_opt+=" --type=immediate"
     fi
-    # tablespace-map-all=${TO}/remapped_tablespaces
-    mkdir -p "${TO}"/remapped_tablespaces
+    # tablespace-map-all
+    mkdir -p "${TO}"_remapped_tablespaces
     # -- repo1-path
     if [[ -f /etc/pgbackrest.conf ]]; then grep -q "repo1-path" /etc/pgbackrest.conf && pgbackrest_opt+=" --$(bash -c "grep \"repo1-path=\" /etc/pgbackrest.conf")"; fi
     # --
@@ -464,8 +464,8 @@ function pgbackrest_exec(){
         detail_rst_log="/var/log/pgbackrest/$FROM-restore.log"
         if [ -f "${detail_rst_log}" ]; then info "See detailed log in the file ${detail_rst_log}"; fi
     # execute pgbackrest
-    echo "pgbackrest --config=${backup_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}/remapped_tablespaces"
-    if bash -c "pgbackrest --config=${backup_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}/remapped_tablespaces"
+    echo "pgbackrest --config=${backup_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
+    if bash -c "pgbackrest --config=${backup_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
     then
         info "Restore from backup done"
         sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' "${zbx_status_file}"
@@ -687,6 +687,7 @@ if [[ "${CLEAR}" = "yes" ]]; then
     cycle_simple pg_stop_check
     if [[ $code -eq 3 ]]; then
         pg_dropcluster "${PGVER}" "${PG_INSTANCE}"
+        rm -rf "${TO}"_remapped_tablespaces
     fi
 fi
 if [[ "${REPORT}" = "yes" ]]; then

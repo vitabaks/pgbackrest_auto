@@ -683,6 +683,10 @@ if [[ "${CHECKDB_MODE}" != "No" ]]; then
     else
     sed -i 's/Amcheck_validation=0/Amcheck_validation=1/g' "${status_file}"
     fi
+else
+    sed -i 's/PG_checksums_validation=0/PG_checksums_validation=1/g' "${status_file}"
+    sed -i 's/Data_validation=0/Data_validation=1/g' "${status_file}"
+    sed -i 's/Amcheck_validation=0/Amcheck_validation=1/g' "${status_file}"
 fi
 # [ optional ] clear data directory
 if [[ "${CLEAR}" = "yes" ]]; then

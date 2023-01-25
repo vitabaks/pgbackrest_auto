@@ -277,7 +277,8 @@ elif [[ -d /usr/pgsql-"${PGVER}"/bin ]]; then
     PG_BIN_DIR=/usr/pgsql-"${PGVER}"/bin
     PG_CONF_DIR="${PGDATA}"
 else
-    error "PostgreSQL bin directory not found"
+    error "The bin directory \"/usr/lib/postgresql/${PGVER}/bin\" was not found. \
+Please check if the appropriate version of PostgreSQL packages is installed."
 fi
 
 # check if pg_checksums exists (for PostgreSQL version <= 11)

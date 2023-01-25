@@ -45,6 +45,7 @@ function warnmsg(){
 function error(){
     msg="$1"
     echo -e "$(date "+%F %T") \e[91mERROR:\e[0m $msg"
+    sed -i 's/Result_status=1/Result_status=0/g' "${status_file}"
     logger -p user.error -t "$(basename "$0")" "$msg"
     # sendmail
     if [[ "${REPORT}" = "yes" ]]; then sendmail; fi

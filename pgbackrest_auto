@@ -277,7 +277,7 @@ elif [[ -d /usr/pgsql-"${PGVER}"/bin ]]; then
     PG_BIN_DIR=/usr/pgsql-"${PGVER}"/bin
     PG_CONF_DIR="${PGDATA}"
 else
-    error "The bin directory \"/usr/lib/postgresql/${PGVER}/bin\" was not found. \
+    error "The bin directory for PostgreSQL ${PGVER} was not found. \
 Please check if the appropriate version of PostgreSQL packages is installed."
 fi
 
@@ -515,7 +515,7 @@ function dummy_dump(){
         for db in $databases; do
             info "Start data validation for database $db"
             if pgisready 1> /dev/null; then
-                info "... starting psql -p ${PGPORT} -h 127.0.0.1 -d $db >> /dev/null"
+                info "... starting pg_dump -p ${PGPORT} -h 127.0.0.1 -d $db >> /dev/null"
                 if ! "${PG_BIN_DIR}"/pg_dump -p "${PGPORT}" -h 127.0.0.1 -d "$db" >> /dev/null
                 then
                     error "Data validation in the database $db - Failed"

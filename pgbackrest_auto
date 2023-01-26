@@ -515,7 +515,7 @@ function dummy_dump(){
         for db in $databases; do
             info "Start data validation for database $db"
             if pgisready 1> /dev/null; then
-                info "... starting pg_dump -p ${PGPORT} -h 127.0.0.1 -d $db >> /dev/null"
+                info "  starting pg_dump -p ${PGPORT} -h 127.0.0.1 -d $db >> /dev/null"
                 if ! "${PG_BIN_DIR}"/pg_dump -p "${PGPORT}" -h 127.0.0.1 -d "$db" >> /dev/null
                 then
                     error "Data validation in the database $db - Failed"

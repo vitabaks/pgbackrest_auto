@@ -340,20 +340,6 @@ if [[ -z $CHECKDB ]]; then
 else CHECKDB_MODE="yes"
 fi
 
-# Variables for function "pgbackrest_exec()"
-if [[ -z $BACKUPHOST ]]; then BACKUPHOST="localhost"; fi
-if [[ -n $CONFIG ]]; then
-    pgbackrest_conf="${CONFIG}"
-else
-    pgbackrest_conf=/tmp/pgbackrest.conf
-    if [ ! -f $pgbackrest_conf ]; then touch $pgbackrest_conf; fi
-fi
-if [[ $PGVER = 9.4 || $PGVER = 94 ]]; then
-    recovery_opt="pause_at_recovery_target=false"
-else
-    recovery_opt="recovery_target_action=promote"
-fi
-
 # restore_type_msg
 if [[ -z $DATNAME && $RECOVERYTYPE = time ]]; then
     restore_type_msg="Full PostgreSQL Restore with Point-in-Time"
@@ -482,24 +468,40 @@ function pg_start(){
 }
 
 function pgbackrest_exec(){
+    # config
+    if [[ -n $CONFIG ]]; then
+        pgbackrest_conf="${CONFIG}"
+    else
+        pgbackrest_conf=/tmp/pgbackrest.conf
+        if [ ! -f $pgbackrest_conf ]; then touch $pgbackrest_conf; fi
+    fi
+    # repo1-host
+    if [[ -z $BACKUPHOST ]]; then BACKUPHOST="localhost"; fi
+    # recovery_opt
+    if [[ $PGVER = 9.4 || $PGVER = 94 ]]; then
+        recovery_opt="pause_at_recovery_target=false"
+    else
+        recovery_opt="recovery_target_action=promote"
+    fi
+    # pgbackrest_opt
     [[ -n "${BACKUPSET}" ]] && pgbackrest_opt="--set=${BACKUPSET}"
     [[ -n "${DATNAME}" ]] && for db in ${DATNAME}; do pgbackrest_opt+=" --db-include=${db}"; done
     if [[ "${RECOVERYTYPE}" = "default" || "${RECOVERYTYPE}" = "time" ]]; then
         [[ -n "${RECOVERYTYPE}" ]] && pgbackrest_opt+=" --type=${RECOVERYTYPE}"
         [[ -n "${RECOVERYTARGET}" ]] && pgbackrest_opt+=" --target=\"${RECOVERYTARGET}\""
     else
-    pgbackrest_opt+=" --type=immediate"
+        pgbackrest_opt+=" --type=immediate"
     fi
     # tablespace-map-all
     mkdir -p "${TO}"_remapped_tablespaces
-    # -- repo1-path
+    # repo1-path
     if [[ $pgbackrest_conf = "/tmp/pgbackrest.conf" && -f /etc/pgbackrest.conf ]]; then
         grep -q "repo1-path" /etc/pgbackrest.conf && pgbackrest_opt+=" --$(bash -c "grep \"repo1-path=\" /etc/pgbackrest.conf")"
     fi
-    # --
-        info "Restore from backup started. Type: $restore_type_msg"
-        detail_rst_log="/var/log/pgbackrest/$FROM-restore.log"
-        if [ -f "${detail_rst_log}" ]; then info "See detailed log in the file ${detail_rst_log}"; fi
+    # detail_rst_log
+    detail_rst_log="/var/log/pgbackrest/$FROM-restore.log"
+    if [ -f "${detail_rst_log}" ]; then info "See detailed log in the file ${detail_rst_log}"; fi
+    info "Restore from backup started. Type: $restore_type_msg"
     # execute pgbackrest
     echo "pgbackrest --config=${pgbackrest_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
     if bash -c "pgbackrest --config=${pgbackrest_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"

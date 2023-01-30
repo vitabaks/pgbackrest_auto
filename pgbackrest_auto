@@ -257,7 +257,9 @@ if [[ -z $RECOVERYTYPE ]]; then RECOVERYTYPE="immediate"; fi
 [[ $RECOVERYTYPE = default && -n $RECOVERYTARGET ]] && error "Not use --recovery-type=default with --recovery-target"
 if [[ -n $DATNAME && -n $CHECKDB ]]; then error "Not use --checkdb with --datname. It work with only Full PostgreSQL Restore"; fi
 
-# PostgreSQL version
+# PostgreSQL variables
+
+# version
 if [[ -z $PGVER ]]; then
     # get the postgres version from stanza
     PGVER=$(pgbackrest info --stanza="${FROM}" --output=json | jq -r '.[].db[-1]."version"')
@@ -266,19 +268,30 @@ if [[ -z $PGVER ]]; then
     fi
 fi
 
-# PostgreSQL data diretory
+# data diretory
 PGDATA="${TO}"
 
-# PostgreSQL bin and conf directories
-if [[ -d /usr/lib/postgresql/"${PGVER}"/bin ]]; then
-    PG_BIN_DIR=/usr/lib/postgresql/"${PGVER}"/bin
-    PG_CONF_DIR="${PGDATA}"
-elif [[ -d /usr/pgsql-"${PGVER}"/bin ]]; then
-    PG_BIN_DIR=/usr/pgsql-"${PGVER}"/bin
-    PG_CONF_DIR="${PGDATA}"
-else
-    error "The bin directory for PostgreSQL ${PGVER} was not found. \
-Please check if the appropriate version of PostgreSQL packages is installed."
+# bin diretory
+PG_BIN_DIR=""
+
+# try to define the bin directory (if PG_BIN_DIR is not set)
+if [[ -z "${PG_BIN_DIR}" ]]; then
+    if [[ -d /usr/lib/postgresql/"${PGVER}"/bin ]]; then
+        PG_BIN_DIR=/usr/lib/postgresql/"${PGVER}"/bin
+        PG_CONF_DIR="${PGDATA}"
+    elif [[ -d /usr/pgsql-"${PGVER}"/bin ]]; then
+        PG_BIN_DIR=/usr/pgsql-"${PGVER}"/bin
+        PG_CONF_DIR="${PGDATA}"
+    else
+        error "The bin directory for PostgreSQL ${PGVER} was not found. \
+    Please check if the appropriate version of PostgreSQL packages is installed."
+    fi
+fi
+
+# check if pg_ctl exists
+if ! command -v "${PG_BIN_DIR}"/pg_ctl &> /dev/null; then
+    warnmsg "${PG_BIN_DIR}/pg_ctl command not be found. Make sure that the PG_BIN_DIR variable is set correctly."
+    exit
 fi
 
 # check if pg_checksums exists (for PostgreSQL version <= 11)

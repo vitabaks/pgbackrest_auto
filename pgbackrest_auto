@@ -300,7 +300,7 @@ if ! command -v "${PG_BIN_DIR}"/pg_ctl &> /dev/null; then
 fi
 
 # check if pg_checksums exists (for PostgreSQL version <= 11)
-if [[ "$PGVER" -le "11" ]] && [[ "${CHECKSUMS}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
+if [[ "$PGVER" -le "11" && "${CHECKSUMS}" = "yes" ]] || [[ "$PGVER" -le "11" && "${CHECKDB}" = "yes" ]]; then
     if ! command -v "${PG_BIN_DIR}"/pg_checksums &> /dev/null
     then
         warnmsg "pg_checksums command not be found. Please install the postgresql-$PGVER-pg-checksums package"

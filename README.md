@@ -210,6 +210,7 @@ for `--report`:
 
 Run as user: `postgres`
 
+If your PostgreSQL is installed somewhere other than the default installation path, please specify the `PG_BIN_DIR` variable in the script file.
 
 ## Installation
 1. Download and copy the `pgbackrest_auto` script to `/usr/bin/` directory

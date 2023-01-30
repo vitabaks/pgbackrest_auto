@@ -80,6 +80,8 @@ Important: Run on the nodes on which you want to restore the backup
 
 Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --backup-host=HOST ] [ --pgver= ] [ --checkdb ] [ --clear ] [ --report ] ]
 
+--config=/path/to/pgbackrest.conf
+        The path to the custom pgbackrest configuration file [ optional ]
 
 --from=STANZANAME
         Stanza from which you need to restore from a backup

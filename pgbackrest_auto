@@ -386,7 +386,19 @@ function check_mistake_run(){
 }
 
 function pg_port_pick(){
-    PGPORT=5432 # TODO (allocate a free port, 5432,5433,5434 etc)
+    port_from=5432
+    port_to=6432
+    # allocate a free port from the port range
+    for (( port=$port_from; port<=$port_to; port++)); do
+        if ! "${PG_BIN_DIR}"/pg_isready -qp "$port"; then
+        PGPORT=$port
+        break
+        fi
+    done
+    # check if the port is allocated
+    if [[ -z $PGPORT ]]; then
+      error "pg_port_pick: Can't allocate Postgres port"
+    fi
 }
 
 function cycle_simple(){
@@ -425,7 +437,6 @@ function pg_stop_check(){
         info "Wait PostgreSQL instance ${PGPORT} stop: wait ${sleep}s"
         sleep ${sleep}s
     elif [[ $code -eq 4 ]]; then
-        info "${TO} is not a database cluster directory. May be its clean."
         status=ok
     else
         warnmsg "PostgreSQL check failed"
@@ -448,7 +459,7 @@ function pg_stop(){
 }
 
 function pgisready(){
-    if pg_isready -qp "${PGPORT}"
+    if "${PG_BIN_DIR}"/pg_isready -qp "${PGPORT}"
     then
         info "PostgreSQL instance ${PGPORT} started and accepting connections"
         status=ok
@@ -460,8 +471,9 @@ function pgisready(){
 }
 
 function pg_start(){
+    pg_port_pick
     info "PostgreSQL start"
-    if ! "${PG_BIN_DIR}"/pg_ctl start -D "${PGDATA}" -w -t 1800 &> /dev/null
+    if ! "${PG_BIN_DIR}"/pg_ctl -o "-p ${PGPORT}" start -D "${PGDATA}" -w -t 1800 &> /dev/null
     then
         error "PostgreSQL instance ${PGPORT} start failed"
     else
@@ -612,8 +624,6 @@ function postgresql_conf(){
     if [ ! -f "${PG_CONF_DIR}"/postgresql.conf ]; then touch "${PG_CONF_DIR}"/postgresql.conf; fi
     # listen_addresses
     echo "listen_addresses = '127.0.0.1'" > "${PG_CONF_DIR}"/postgresql.conf
-    # port
-    echo "port = ${PGPORT}" >> "${PG_CONF_DIR}"/postgresql.conf
     # determine postgresql parameters from pg_controldata and configure postgresql.conf
     # max_connections
     max_connections=$("${PG_BIN_DIR}"/pg_controldata "${PGDATA}" | grep max_connections | awk '{print $3}')

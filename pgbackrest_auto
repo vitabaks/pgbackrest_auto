@@ -8,7 +8,7 @@
 # for "--report": sendemail
 # Run as user: postgres
 
-ver="1.4.0"
+ver="1.5.0 (beta)"
 
 # variables for function "sendmail()"
 smtp_server="10.128.64.5:25"
@@ -58,6 +58,9 @@ function error(){
 while getopts ":-:" optchar; do
     [[ "${optchar}" == "-" ]] || continue
     case "${OPTARG}" in
+        config=* )
+            CONFIG=${OPTARG#*=}
+            ;;
         from=* )
             FROM=${OPTARG#*=}
             ;;
@@ -120,13 +123,15 @@ Important: Run on the nodes on which you want to restore the backup
 
 Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --backup-host=HOST ] [ --pgver= ] [ --checkdb ] [ --clear ] [ --report ] ]
 
+--config=/path/to/pgbackrest.conf
+        The path to the custom pgbackrest configuration file [ optional ]
 
 --from=STANZANAME
         Stanza from which you need to restore from a backup
 
 --to=DATA_DIRECTORY
         PostgreSQL Data directory Path to restore from a backup
-        a PostgreSQL database cluster (PGDATA) will be automatically created (initdb) if it does not exist
+        a PostgreSQL database cluster (PGDATA) will be automatically created if it does not exist
         Example: /bkpdata/rst/app-db
 
 --datname=DATABASE [...]
@@ -257,8 +262,9 @@ if [[ -z $RECOVERYTYPE ]]; then RECOVERYTYPE="immediate"; fi
 [[ $RECOVERYTYPE = default && -n $RECOVERYTARGET ]] && error "Not use --recovery-type=default with --recovery-target"
 if [[ -n $DATNAME && -n $CHECKDB ]]; then error "Not use --checkdb with --datname. It work with only Full PostgreSQL Restore"; fi
 
-# PostgreSQL
-PG_INSTANCE=$(bash -c "echo ${TO} | sed -e 's|.*/||g'")
+# PostgreSQL variables
+
+# version
 if [[ -z $PGVER ]]; then
     # get the postgres version from stanza
     PGVER=$(pgbackrest info --stanza="${FROM}" --output=json | jq -r '.[].db[-1]."version"')
@@ -267,9 +273,35 @@ if [[ -z $PGVER ]]; then
     fi
 fi
 
+# data diretory
+PGDATA="${TO}"
+
+# bin diretory
+PG_BIN_DIR=""
+
+# try to define the bin directory (if PG_BIN_DIR is not set)
+if [[ -z "${PG_BIN_DIR}" ]]; then
+    if [[ -d /usr/lib/postgresql/"${PGVER}"/bin ]]; then
+        PG_BIN_DIR=/usr/lib/postgresql/"${PGVER}"/bin
+        PG_CONF_DIR="${PGDATA}"
+    elif [[ -d /usr/pgsql-"${PGVER}"/bin ]]; then
+        PG_BIN_DIR=/usr/pgsql-"${PGVER}"/bin
+        PG_CONF_DIR="${PGDATA}"
+    else
+        error "The bin directory for PostgreSQL ${PGVER} was not found. \
+    Please check if the appropriate version of PostgreSQL packages is installed."
+    fi
+fi
+
+# check if pg_ctl exists
+if ! command -v "${PG_BIN_DIR}"/pg_ctl &> /dev/null; then
+    warnmsg "${PG_BIN_DIR}/pg_ctl command not be found. Make sure that the PG_BIN_DIR variable is set correctly."
+    exit
+fi
+
 # check if pg_checksums exists (for PostgreSQL version <= 11)
-if [[ "$PGVER" -le "11" ]] && [[ "${CHECKSUMS}" = "yes" ]] || [[ "${CHECKDB}" = "yes" ]]; then
-    if ! command -v /usr/lib/postgresql/"${PGVER}"/bin/pg_checksums &> /dev/null
+if [[ "$PGVER" -le "11" && "${CHECKSUMS}" = "yes" ]] || [[ "$PGVER" -le "11" && "${CHECKDB}" = "yes" ]]; then
+    if ! command -v "${PG_BIN_DIR}"/pg_checksums &> /dev/null
     then
         warnmsg "pg_checksums command not be found. Please install the postgresql-$PGVER-pg-checksums package"
         exit
@@ -277,23 +309,9 @@ if [[ "$PGVER" -le "11" ]] && [[ "${CHECKSUMS}" = "yes" ]] || [[ "${CHECKDB}" = 
 fi
 
 # check if a directory exists
-if [[ ! -d "${TO}" ]]; then
-    if ! mkdir -p "$TO"; then
-        warnmsg "cannot create directory $TO"
-        exit
-    fi
-fi
-
-# initdb if the directory ("--to") is empty
-if [[ -z "$(ls -A "${TO}")" ]]; then
-    # check if postgresql package exists
-    if ! dpkg -l | grep -q postgresql-"${PGVER}"; then
-        warnmsg "the PostgreSQL version ${PGVER} could not be found. Please install the postgresql-${PGVER} package"
-        exit
-    fi
-    # pg_createcluster
-    if ! pg_createcluster "${PGVER}" "${PG_INSTANCE}" -D "${TO}" &> /dev/null; then
-        warnmsg "initdb error with the command \"pg_createcluster ${PGVER} ${PG_INSTANCE} -D ${TO}\""
+if [[ ! -d "${PGDATA}" ]]; then
+    if ! mkdir -p "${PGDATA}"; then
+        warnmsg "cannot create directory ${PGDATA}"
         exit
     fi
 fi
@@ -322,16 +340,6 @@ if [[ -z $CHECKDB ]]; then
 else CHECKDB_MODE="yes"
 fi
 
-# Variables for function "pgbackrest_exec()"
-if [[ -z $BACKUPHOST ]]; then BACKUPHOST="localhost"; fi
-backup_conf=/tmp/pgbackrest_auto.conf
-if [ ! -f $backup_conf ]; then touch $backup_conf; fi
-if [[ $PGVER = 9.4 || $PGVER = 94 ]]; then
-    recovery_opt="pause_at_recovery_target=false"
-else
-    recovery_opt="recovery_target_action=promote"
-fi
-
 # restore_type_msg
 if [[ -z $DATNAME && $RECOVERYTYPE = time ]]; then
     restore_type_msg="Full PostgreSQL Restore with Point-in-Time"
@@ -357,17 +365,25 @@ function check_errcode(){
 }
 
 function check_mistake_run(){
-    if [[ -n "${TO}" ]]; then
+    if [[ -n "${PGDATA}" ]]; then
         warnmsg "Restoring to ${TO} Waiting 30 seconds. The directory will be overwritten. If mistake, press ^C"
         sleep 30s
     fi
 }
 
 function pg_port_pick(){
-    if [[ -f /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf ]]; then
-        PGPORT=$(sed -n 's/port.*=.*\([0-9]\{4\}\).*/\1/p' /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf | tail -1)
-    else
-        error "port not found or missing /etc/postgresql/${PGVER}/${PG_INSTANCE}/postgresql.conf file"
+    port_from=5432
+    port_to=6432
+    # allocate a free port from the port range
+    for (( port=$port_from; port<=$port_to; port++)); do
+        if ! "${PG_BIN_DIR}"/pg_isready -qp "$port"; then
+        PGPORT=$port
+        break
+        fi
+    done
+    # check if the port is allocated
+    if [[ -z $PGPORT ]]; then
+      error "pg_port_pick: Can't allocate Postgres port"
     fi
 }
 
@@ -398,16 +414,15 @@ function pg_stop_check(){
     sleep=10
     # Use with function cycle_simple
     info "PostgreSQL check status"
-    /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" status &> /dev/null
+    "${PG_BIN_DIR}"/pg_ctl status -D "${PGDATA}" &> /dev/null
     code=$?
     if [[ $code -eq 3 ]]; then
-        info "PostgreSQL instance ${PG_INSTANCE} not running"
+        info "PostgreSQL instance ${PGPORT} not running"
         status=ok
     elif [[ $code -eq 0 ]]; then
-        info "Wait PostgreSQL instance ${PG_INSTANCE} stop: wait ${sleep}s"
+        info "Wait PostgreSQL instance ${PGPORT} stop: wait ${sleep}s"
         sleep ${sleep}s
     elif [[ $code -eq 4 ]]; then
-        info "${TO} is not a database cluster directory. May be its clean."
         status=ok
     else
         warnmsg "PostgreSQL check failed"
@@ -416,61 +431,80 @@ function pg_stop_check(){
 }
 
 function pg_stop(){
-    /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" status &> /dev/null
+    "${PG_BIN_DIR}"/pg_ctl status -D "${PGDATA}" &> /dev/null
     code=$?
     if [[ $code -eq 0 ]]; then
         info "PostgreSQL stop"
-        if /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" stop -m fast -- --wait --timeout=600 &> /dev/null
+        if "${PG_BIN_DIR}"/pg_ctl stop -D "${PGDATA}" -m fast -w -t 1800 &> /dev/null
         then
-            info "PostgreSQL instance ${PG_INSTANCE} stopped"
+            info "PostgreSQL instance ${PGPORT} stopped"
         else
-            warnmsg "PostgreSQL instance ${PG_INSTANCE} stop failed"
+            warnmsg "PostgreSQL instance ${PGPORT} stop failed"
         fi
     fi
 }
 
 function pgisready(){
-    if pg_isready -qp "${PGPORT}"
+    if "${PG_BIN_DIR}"/pg_isready -qp "${PGPORT}"
     then
-        info "PostgreSQL instance ${PG_INSTANCE} started and accepting connections"
+        info "PostgreSQL instance ${PGPORT} started and accepting connections"
         status=ok
         return 0
     else
-        warnmsg "PostgreSQL instance ${PG_INSTANCE} no response"
+        warnmsg "PostgreSQL instance ${PGPORT} no response"
         return 1
     fi
 }
 
 function pg_start(){
+    pg_port_pick
     info "PostgreSQL start"
-    if ! /usr/bin/pg_ctlcluster "${PGVER}" "${PG_INSTANCE}" start -- --wait --timeout=600 &> /dev/null
+    if ! "${PG_BIN_DIR}"/pg_ctl -o "-p ${PGPORT}" start -D "${PGDATA}" -w -t 1800 &> /dev/null
     then
-        error "PostgreSQL instance ${PG_INSTANCE} start failed"
+        error "PostgreSQL instance ${PGPORT} start failed"
     else
         pgisready 1> /dev/null
     fi
 }
 
 function pgbackrest_exec(){
+    # config
+    if [[ -n $CONFIG ]]; then
+        pgbackrest_conf="${CONFIG}"
+    else
+        pgbackrest_conf=/tmp/pgbackrest.conf
+        if [ ! -f $pgbackrest_conf ]; then touch $pgbackrest_conf; fi
+    fi
+    # repo1-host
+    if [[ -z $BACKUPHOST ]]; then BACKUPHOST="localhost"; fi
+    # recovery_opt
+    if [[ $PGVER = 9.4 || $PGVER = 94 ]]; then
+        recovery_opt="pause_at_recovery_target=false"
+    else
+        recovery_opt="recovery_target_action=promote"
+    fi
+    # pgbackrest_opt
     [[ -n "${BACKUPSET}" ]] && pgbackrest_opt="--set=${BACKUPSET}"
     [[ -n "${DATNAME}" ]] && for db in ${DATNAME}; do pgbackrest_opt+=" --db-include=${db}"; done
     if [[ "${RECOVERYTYPE}" = "default" || "${RECOVERYTYPE}" = "time" ]]; then
         [[ -n "${RECOVERYTYPE}" ]] && pgbackrest_opt+=" --type=${RECOVERYTYPE}"
         [[ -n "${RECOVERYTARGET}" ]] && pgbackrest_opt+=" --target=\"${RECOVERYTARGET}\""
     else
-    pgbackrest_opt+=" --type=immediate"
+        pgbackrest_opt+=" --type=immediate"
     fi
     # tablespace-map-all
     mkdir -p "${TO}"_remapped_tablespaces
-    # -- repo1-path
-    if [[ -f /etc/pgbackrest.conf ]]; then grep -q "repo1-path" /etc/pgbackrest.conf && pgbackrest_opt+=" --$(bash -c "grep \"repo1-path=\" /etc/pgbackrest.conf")"; fi
-    # --
-        info "Restore from backup started. Type: $restore_type_msg"
-        detail_rst_log="/var/log/pgbackrest/$FROM-restore.log"
-        if [ -f "${detail_rst_log}" ]; then info "See detailed log in the file ${detail_rst_log}"; fi
+    # repo1-path
+    if [[ $pgbackrest_conf = "/tmp/pgbackrest.conf" && -f /etc/pgbackrest.conf ]]; then
+        grep -q "repo1-path" /etc/pgbackrest.conf && pgbackrest_opt+=" --$(bash -c "grep \"repo1-path=\" /etc/pgbackrest.conf")"
+    fi
+    # detail_rst_log
+    detail_rst_log="/var/log/pgbackrest/$FROM-restore.log"
+    if [ -f "${detail_rst_log}" ]; then info "See detailed log in the file ${detail_rst_log}"; fi
+    info "Restore from backup started. Type: $restore_type_msg"
     # execute pgbackrest
-    echo "pgbackrest --config=${backup_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
-    if bash -c "pgbackrest --config=${backup_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
+    echo "pgbackrest --config=${pgbackrest_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
+    if bash -c "pgbackrest --config=${pgbackrest_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
     then
         info "Restore from backup done"
         sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' "${status_file}"
@@ -482,9 +516,9 @@ function pgbackrest_exec(){
 function pg_info_replay(){
     if [[ "${RECOVERYTYPE}" = "time" ]]; then
         info "RECOVERYTYPE time"
-        result=$(psql -p "${PGPORT}" -tAXc "SELECT pg_last_xact_replay_timestamp(), '${RECOVERYTARGET}' - pg_last_xact_replay_timestamp()")
+        result=$(psql -p "${PGPORT}" -h 127.0.0.1 -tAXc "SELECT pg_last_xact_replay_timestamp(), '${RECOVERYTARGET}' - pg_last_xact_replay_timestamp()")
     else
-        result=$(psql -p "${PGPORT}" -tAXc "SELECT pg_last_xact_replay_timestamp()")
+        result=$(psql -p "${PGPORT}" -h 127.0.0.1 -tAXc "SELECT pg_last_xact_replay_timestamp()")
     fi
     while IFS='|' read -r replay_timestamp left_timestamp; do
         if [[ -n "${left_timestamp}" ]]; then
@@ -496,7 +530,7 @@ function pg_info_replay(){
 }
 
 function pg_check_recovery(){
-    state=$(psql -p "${PGPORT}" -tAXc 'SELECT pg_is_in_recovery()') 2>/dev/null
+    state=$(psql -p "${PGPORT}" -h 127.0.0.1 -tAXc 'SELECT pg_is_in_recovery()') 2>/dev/null
     pg_info_replay
     # Is the restore complete? YES
     if [ "$state" = "f" ]; then
@@ -515,12 +549,12 @@ function pg_check_recovery(){
 function dummy_dump(){
     if ! pgisready 1> /dev/null; then pg_start cycle_simple pgisready; fi
     sed -i 's/Data_validation=0/Data_validation=1/g' "${status_file}"
-    databases=$(bash -c "psql -p ${PGPORT} -tAXc \"select datname from pg_database where not datistemplate\"")
+    databases=$(bash -c "psql -p ${PGPORT} -h 127.0.0.1 -tAXc \"select datname from pg_database where not datistemplate\"")
         for db in $databases; do
             info "Start data validation for database $db"
             if pgisready 1> /dev/null; then
-                info "... starting pg_dump -p ${PGPORT} -d $db >> /dev/null"
-                if ! /usr/lib/postgresql/"${PGVER}"/bin/pg_dump -p "${PGPORT}" -d "$db" >> /dev/null
+                info "  starting pg_dump -p ${PGPORT} -h 127.0.0.1 -d $db >> /dev/null"
+                if ! "${PG_BIN_DIR}"/pg_dump -p "${PGPORT}" -h 127.0.0.1 -d "$db" >> /dev/null
                 then
                     error "Data validation in the database $db - Failed"
                     sed -i 's/Data_validation=1/Data_validation=0/g' "${status_file}"
@@ -536,7 +570,7 @@ function pg_checksums(){
     if pgisready 1> /dev/null; then pg_stop cycle_simple pg_stop_check; fi
     info "pg_checksums: starting data checksums validation"
     sed -i 's/PG_checksums_validation=0/PG_checksums_validation=1/g' "${status_file}"
-    pg_checksums_result=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_checksums -c -D "${TO}" | grep "Bad checksums")
+    pg_checksums_result=$("${PG_BIN_DIR}"/pg_checksums -c -D "${PGDATA}" | grep "Bad checksums")
     if [[ $pg_checksums_result != "Bad checksums:  0" ]]
     then
         warnmsg "pg_checksums: data checksums validation result: $pg_checksums_result"
@@ -554,7 +588,7 @@ function amcheck_exists(){
     else
         extension='amcheck'
     fi
-    if ! psql -v "ON_ERROR_STOP" -p "${PGPORT}" -U postgres -d "$db_name" -tAXc "CREATE EXTENSION if not exists $extension" &> /dev/null
+    if ! psql -v "ON_ERROR_STOP" -p "${PGPORT}" -h 127.0.0.1 -U postgres -d "$db_name" -tAXc "CREATE EXTENSION if not exists $extension" &> /dev/null
     then
         error "CREATE EXTENSION $extension failed"
     fi
@@ -564,15 +598,15 @@ function amcheck_exists(){
 function amcheck(){
     if ! pgisready 1> /dev/null; then pg_start cycle_simple pgisready; fi
     sed -i 's/Amcheck_validation=0/Amcheck_validation=1/g' "${status_file}"
-    databases=$(bash -c "psql -p ${PGPORT} -tAXc \"select datname from pg_database where not datistemplate\"")
+    databases=$(bash -c "psql -p ${PGPORT} -h 127.0.0.1 -tAXc \"select datname from pg_database where not datistemplate\"")
     for db_name in $databases; do
         if pgisready 1> /dev/null; then
             if amcheck_exists; then
                 info "amcheck: verify the logical consistency of the structure of indexes and heap relations in the database $db_name"
-                indexes=$(psql -p "${PGPORT}" -d "$db_name" -tXAc "SELECT quote_ident(n.nspname)||'.'||quote_ident(c.relname) FROM pg_index i JOIN pg_opclass op ON i.indclass[0] = op.oid JOIN pg_am am ON op.opcmethod = am.oid JOIN pg_class c ON i.indexrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE am.amname = 'btree' AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND c.relpersistence != 't' AND c.relkind = 'i' AND i.indisready AND i.indisvalid")
+                indexes=$(psql -p "${PGPORT}" -h 127.0.0.1 -d "$db_name" -tXAc "SELECT quote_ident(n.nspname)||'.'||quote_ident(c.relname) FROM pg_index i JOIN pg_opclass op ON i.indclass[0] = op.oid JOIN pg_am am ON op.opcmethod = am.oid JOIN pg_class c ON i.indexrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE am.amname = 'btree' AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND c.relpersistence != 't' AND c.relkind = 'i' AND i.indisready AND i.indisvalid")
                 for index in $indexes; do
                     # info "amcheck: verify the logical consistency of the structure of index ${index}"
-                    if ! psql -v ON_ERROR_STOP=on -p "${PGPORT}" -d "$db_name" -tAXc "select bt_index_parent_check('${index}', heapallindexed => true)" 1> /dev/null
+                    if ! psql -v ON_ERROR_STOP=on -p "${PGPORT}" -h 127.0.0.1 -d "$db_name" -tAXc "select bt_index_parent_check('${index}', heapallindexed => true)" 1> /dev/null
                     then
                         warnmsg "amcheck: logical validation for index ${index} ( database $db_name ) - Failed"
                         sed -i 's/Amcheck_validation=1/Amcheck_validation=0/g' "${status_file}"
@@ -583,20 +617,28 @@ function amcheck(){
     done
 }
 
-# determine postgresql parameters from pg_controldata and configure postgresql.conf
 function postgresql_conf(){
+    # create pg_hba.conf file if not exist
+    if [ ! -f "${PG_CONF_DIR}"/pg_hba.conf ]; then touch "${PG_CONF_DIR}"/pg_hba.conf; fi
+    # add an access rule for localhost only
+    echo "host all all 127.0.0.1/32 trust" > "${PG_CONF_DIR}"/pg_hba.conf
+    # create postgresql.conf file if not exist
+    if [ ! -f "${PG_CONF_DIR}"/postgresql.conf ]; then touch "${PG_CONF_DIR}"/postgresql.conf; fi
+    # listen_addresses
+    echo "listen_addresses = '127.0.0.1'" > "${PG_CONF_DIR}"/postgresql.conf
+    # determine postgresql parameters from pg_controldata and configure postgresql.conf
     # max_connections
-    max_connections=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_controldata "${TO}" | grep max_connections | awk '{print $3}')
-    sed -i "/max_connections = /c\max_connections = ${max_connections}" /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf
+    max_connections=$("${PG_BIN_DIR}"/pg_controldata "${PGDATA}" | grep max_connections | awk '{print $3}')
+    echo "max_connections = ${max_connections}" >> "${PG_CONF_DIR}"/postgresql.conf
     # max_worker_processes
-    max_worker_processes=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_controldata "${TO}" | grep max_worker_processes | awk '{print $3}')
-    sed -i "/max_worker_processes = /c\max_worker_processes = ${max_worker_processes}" /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf
+    max_worker_processes=$("${PG_BIN_DIR}"/pg_controldata "${PGDATA}" | grep max_worker_processes | awk '{print $3}')
+    echo "max_worker_processes = ${max_worker_processes}" >> "${PG_CONF_DIR}"/postgresql.conf
     # max_prepared_transactions
-    max_prepared_transactions=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_controldata "${TO}" | grep max_prepared_xacts | awk '{print $3}')
-    sed -i "/max_prepared_transactions = /c\max_prepared_transactions = ${max_prepared_transactions}" /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf
+    max_prepared_transactions=$("${PG_BIN_DIR}"/pg_controldata "${PGDATA}" | grep max_prepared_xacts | awk '{print $3}')
+    echo "max_prepared_transactions = ${max_prepared_transactions}" >> "${PG_CONF_DIR}"/postgresql.conf
     # max_locks_per_transaction
-    max_locks_per_transaction=$(/usr/lib/postgresql/"${PGVER}"/bin/pg_controldata "${TO}" | grep max_locks_per_xact | awk '{print $3}')
-    sed -i "/max_locks_per_transaction = /c\max_locks_per_transaction = ${max_locks_per_transaction}" /etc/postgresql/"${PGVER}"/"${PG_INSTANCE}"/postgresql.conf
+    max_locks_per_transaction=$("${PG_BIN_DIR}"/pg_controldata "${PGDATA}" | grep max_locks_per_xact | awk '{print $3}')
+    echo "max_locks_per_transaction = ${max_locks_per_transaction}" >> "${PG_CONF_DIR}"/postgresql.conf
 }
 
 
@@ -613,7 +655,6 @@ if [[ "$NORESTORE" = "yes" ]]; then
     info "Starting. Skipping restore."
     info "Starting. Run settings: Log: ${log}"
     info "Starting. Run settings: Lock run: ${lock}"
-    info "Starting. PostgreSQL instance: ${PG_INSTANCE}"
     info "Starting. PostgreSQL version: ${PGVER}"
     info "Starting. PostgreSQL port: ${PGPORT}"
     info "Starting. PostgreSQL Database Validation: ${CHECKDB_MODE}"
@@ -630,7 +671,6 @@ else
     info "Starting. Run settings: Backup host: ${BACKUPHOST}"
     info "Starting. Run settings: Log: ${log}"
     info "Starting. Run settings: Lock run: ${lock}"
-    info "Starting. PostgreSQL instance: ${PG_INSTANCE}"
     info "Starting. PostgreSQL version: ${PGVER}"
     info "Starting. PostgreSQL port: ${PGPORT}"
     info "Starting. PostgreSQL Database Validation: ${CHECKDB_MODE}"
@@ -695,7 +735,7 @@ if [[ "${CLEAR}" = "yes" ]]; then
     pg_stop
     cycle_simple pg_stop_check
     if [[ $code -eq 3 ]]; then
-        pg_dropcluster "${PGVER}" "${PG_INSTANCE}"
+        rm -rf "${TO}"
         rm -rf "${TO}"_remapped_tablespaces
     fi
 fi

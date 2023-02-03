@@ -79,11 +79,11 @@ while getopts ":-:" optchar; do
         recovery-target=* )
             RECOVERYTARGET=${OPTARG#*=}
             ;;
-        backup-host=* )
-            BACKUPHOST=${OPTARG#*=}
-            ;;
         pgver=* )
             PGVER=${OPTARG#*=}
+            ;;
+        custom-options=* )
+            CUSTOMOTIONS=${OPTARG#*=}
             ;;
         dummy-dump )
             DUMMYDUMP=yes
@@ -121,7 +121,7 @@ Support three types of restore:
 
 Important: Run on the nodes on which you want to restore the backup
 
-Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --backup-host=HOST ] [ --pgver= ] [ --checkdb ] [ --clear ] [ --report ] ]
+Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --pgver= ] [ --checkdb ] [ --clear ] [ --report ] ]
 
 --config=/path/to/pgbackrest.conf
         The path to the custom pgbackrest configuration file [ optional ]
@@ -158,10 +158,6 @@ Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ -
                     incr backup: 20220611-000004F_20220614-000003D
         This is the name of SET: 20220611-000004F_20220614-000003D
 
---backup-host=HOST
-        pgBacRest repository ip address (Use SSH Key-Based Authentication)
-        localhost [default]
-
 --pgver=VERSION
         PostgreSQL cluster (instance) version [ optional ]
         by default, the PostgreSQL version will be determined from the pgbackrest info
@@ -188,7 +184,7 @@ Usage: $0 --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ -
         Do not restore a stanza but use an already existing cluster
 
 EXAMPLES:
-( example stanza \"app-db\" , backup-host \"localhost\" )
+( example stanza \"app-db\" , backup host \"localhost\" (default value) )
 
 | Restore last backup:
 
@@ -475,8 +471,6 @@ function pgbackrest_exec(){
         pgbackrest_conf=/tmp/pgbackrest.conf
         if [ ! -f $pgbackrest_conf ]; then touch $pgbackrest_conf; fi
     fi
-    # repo1-host
-    if [[ -z $BACKUPHOST ]]; then BACKUPHOST="localhost"; fi
     # recovery_opt
     if [[ $PGVER = 9.4 || $PGVER = 94 ]]; then
         recovery_opt="pause_at_recovery_target=false"
@@ -494,17 +488,19 @@ function pgbackrest_exec(){
     fi
     # tablespace-map-all
     mkdir -p "${TO}"_remapped_tablespaces
-    # repo1-path
-    if [[ $pgbackrest_conf = "/tmp/pgbackrest.conf" && -f /etc/pgbackrest.conf ]]; then
+    # config file/custom options or set default options
+    if [[ $pgbackrest_conf = "/tmp/pgbackrest.conf" && -f /etc/pgbackrest.conf && -z "${CUSTOMOTIONS}" ]]; then
         grep -q "repo1-path" /etc/pgbackrest.conf && pgbackrest_opt+=" --$(bash -c "grep \"repo1-path=\" /etc/pgbackrest.conf")"
+        pgbackrest_opt+=" --repo1-host=localhost --repo1-host-user=postgres"
     fi
+    if [[ -n "${CUSTOMOTIONS}" ]]; then pgbackrest_opt+=" ${CUSTOMOTIONS}"
     # detail_rst_log
     detail_rst_log="/var/log/pgbackrest/$FROM-restore.log"
     if [ -f "${detail_rst_log}" ]; then info "See detailed log in the file ${detail_rst_log}"; fi
     info "Restore from backup started. Type: $restore_type_msg"
     # execute pgbackrest
-    echo "pgbackrest --config=${pgbackrest_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
-    if bash -c "pgbackrest --config=${pgbackrest_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
+    echo "pgbackrest --config=${pgbackrest_conf} --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
+    if bash -c "pgbackrest --config=${pgbackrest_conf} --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
     then
         info "Restore from backup done"
         sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' "${status_file}"
@@ -668,7 +664,6 @@ if [[ "$NORESTORE" = "yes" ]]; then
 else
     info "Starting. Restore Type: ${restore_type_msg} FROM Stanza: ${FROM} --> TO Directory: ${TO}"
     info "Starting. Restore Settings: ${RECOVERYTYPE} ${RECOVERYTARGET} ${BACKUPSET} ${DATNAME}"
-    info "Starting. Run settings: Backup host: ${BACKUPHOST}"
     info "Starting. Run settings: Log: ${log}"
     info "Starting. Run settings: Lock run: ${lock}"
     info "Starting. PostgreSQL version: ${PGVER}"

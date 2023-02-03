@@ -85,29 +85,8 @@ while getopts ":-:" optchar; do
         pgver=* )
             PGVER=${OPTARG#*=}
             ;;
-        repo-type=* )
-            REPOTYPE=${OPTARG#*=}
-            ;;
-        repo-path=* )
-            REPOPATH=${OPTARG#*=}
-            ;;
-        repo-s3-bucket=* )
-            S3REPOBUCKET=${OPTARG#*=}
-            ;;
-        repo-s3-endpoint=* )
-            S3REPOENDPOINT=${OPTARG#*=}
-            ;;
-        repo-s3-region=* )
-            S3REPOREGION=${OPTARG#*=}
-            ;;
-        repo-s3-uri-style=* )
-            S3REPOURISTYLE=${OPTARG#*=}
-            ;;
-        repo-s3-key=* )
-            S3REPOKEY=${OPTARG#*=}
-            ;;
-        repo-s3-key-secret=* )
-            S3REPOKEYSECRET=${OPTARG#*=}
+        custom-options=* )
+            CUSTOMOTIONS=${OPTARG#*=}
             ;;
         dummy-dump )
             DUMMYDUMP=yes
@@ -518,42 +497,24 @@ function pgbackrest_exec(){
     fi
     # tablespace-map-all
     mkdir -p "${TO}"_remapped_tablespaces
-    # repo1-path
-    if [[ $pgbackrest_conf = "/tmp/pgbackrest.conf" && -f /etc/pgbackrest.conf && -z "${REPOPATH}" ]]; then
+    # config file/custom options or set default options
+    if [[ $pgbackrest_conf = "/tmp/pgbackrest.conf" && -f /etc/pgbackrest.conf && -z "${CUSTOMOTIONS}" ]]; then
         grep -q "repo1-path" /etc/pgbackrest.conf && pgbackrest_opt+=" --$(bash -c "grep \"repo1-path=\" /etc/pgbackrest.conf")"
+        pgbackrest_opt+=" --repo1-host=${BACKUPHOST} --repo1-host-user=postgres"
     fi
+    if [[ ! -z "${CUSTOMOTIONS}" ]]; then pgbackrest_opt+=" ${CUSTOMOTIONS}"
     # detail_rst_log
     detail_rst_log="/var/log/pgbackrest/$FROM-restore.log"
     if [ -f "${detail_rst_log}" ]; then info "See detailed log in the file ${detail_rst_log}"; fi
     info "Restore from backup started. Type: $restore_type_msg"
     # execute pgbackrest
-    if [[ -z $REPOTYPE ]]; then
-        echo "pgbackrest --config=${pgbackrest_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
-        if bash -c "pgbackrest --config=${pgbackrest_conf} --repo1-host=${BACKUPHOST} --repo1-host-user=postgres --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
-        then
-            info "Restore from backup done"
-            sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' "${status_file}"
-        else
-            error "Restore from backup failed"
-        fi
-    elif [[ $REPOTYPE = "s3" ]]; then
-        [[ -z "${REPOPATH}" ]] && error "--repo-path is missing"
-        [[ -z "${S3REPOBUCKET}" ]] && error "--repo-s3-bucket is missing"
-        [[ -z "${S3REPOENDPOINT}" ]] && error "--repo-s3-endpoint is missing"
-        [[ -z "${S3REPOREGION}" ]] && error "--repo-s3-region is missing"
-        [[ -z "${S3REPOURISTYLE}" ]] && error "--repo-s3-uri-style is missing"
-        [[ ! -z "${S3REPOKEY}" ]] && export PGBACKREST_REPO1_S3_KEY=$S3REPOKEY
-        [[ ! -z "${S3REPOKEYSECRET}" ]] && export PGBACKREST_REPO1_S3_KEY_SECRET=$S3REPOKEYSECRET
-        echo "pgbackrest --config=${pgbackrest_conf} --repo1-path=${REPOPATH} --repo1-s3-bucket=${S3REPOBUCKET} --repo1-s3-endpoint=${S3REPOENDPOINT} --repo1-s3-region=${S3REPOREGION} --repo1-s3-uri-style=${S3REPOURISTYLE} --no-repo1-storage-verify-tls --repo1-type=${REPOTYPE} --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
-        if bash -c "pgbackrest --config=${pgbackrest_conf} --repo1-path=${REPOPATH} --repo1-s3-bucket=${S3REPOBUCKET} --repo1-s3-endpoint=${S3REPOENDPOINT} --repo1-s3-region=${S3REPOREGION} --repo1-s3-uri-style=${S3REPOURISTYLE} --no-repo1-storage-verify-tls --repo1-type=${REPOTYPE} --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
-        then
-            info "Restore from backup done"
-            sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' "${status_file}"
-        else
-            error "Restore from backup failed"
-        fi
+    echo "pgbackrest --config=${pgbackrest_conf} --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
+    if bash -c "pgbackrest --config=${pgbackrest_conf} --stanza=${FROM} --pg1-path=${TO} ${pgbackrest_opt} --delta restore --process-max=4 --log-level-console=error --log-level-file=detail --recovery-option=${recovery_opt} --tablespace-map-all=${TO}_remapped_tablespaces"
+    then
+        info "Restore from backup done"
+        sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' "${status_file}"
     else
-        error "Unsupported type of repo: ${REPOTYPE}"
+        error "Restore from backup failed"
     fi
 }
 

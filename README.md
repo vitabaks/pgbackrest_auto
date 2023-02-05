@@ -80,9 +80,6 @@ Important: Run on the nodes on which you want to restore the backup
 
 Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --backup-host=HOST ] [ --pgver= ] [ --checkdb ] [ --clear ] [ --report ] ]
 
---config=/path/to/pgbackrest.conf
-        The path to the custom pgbackrest configuration file [ optional ]
-
 --from=STANZANAME
         Stanza from which you need to restore from a backup
 
@@ -143,6 +140,16 @@ Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datnam
 
 --norestore
         Do not restore a stanza but use an already existing cluster
+
+--config=/path/to/pgbackrest.conf
+        The path to the custom pgbackrest configuration file [ optional ]
+
+--custom-options=""
+        Costom options for pgBackRest [ optional ]
+	This includes all the options that may also be configured in pgbackrest.conf
+        Example: "--option1=value --option2=value --option3=value"
+        See all available options: https://pgbackrest.org/configuration.html
+
 
 EXAMPLES:
 ( example stanza "app-db" , backup-host "localhost" )

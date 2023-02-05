@@ -191,7 +191,7 @@ EXAMPLES:
 ```
 
 ## Compatibility
-Debian/Ubuntu
+RedHat and Debian based distros
 
 ###### PostgreSQL versions:
 all supported PostgreSQL versions

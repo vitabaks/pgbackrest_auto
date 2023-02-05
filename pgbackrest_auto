@@ -2,7 +2,7 @@
 # Author: Vitaliy Kukharik (vitabaks@gmail.com)
 # Title: /usr/bin/pgbackrest_auto - Automatic Restore and Validate for physical and logical database corruption
 
-# Dependencies: OS Debian/Ubuntu, PostgreSQL >= 9.4, pgbackrest >= 2.01, "jq" package;
+# Dependencies: "pgbackrest", "jq" packages;
 # for "--checksums" (and "--checkdb"): postgresql-<version>-pg-checksums package (if PostgreSQL version <= 11)
 # for "--amcheck" (and "--checkdb"): postgresql-<version>-amcheck package (if PostgreSQL version <= 10)
 # for "--report": sendemail

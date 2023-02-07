@@ -500,7 +500,7 @@ function pgbackrest_exec(){
         grep -q "repo1-path" /etc/pgbackrest.conf && pgbackrest_opt+=" --$(bash -c "grep \"repo1-path=\" /etc/pgbackrest.conf")"
         pgbackrest_opt+=" --repo1-host=localhost --repo1-host-user=postgres"
     fi
-    if [[ -n "${CUSTOMOTIONS}" ]]; then pgbackrest_opt+=" ${CUSTOMOTIONS}"
+    if [[ -n "${CUSTOMOTIONS}" ]]; then pgbackrest_opt+=" ${CUSTOMOTIONS}"; fi
     # detail_rst_log
     detail_rst_log="/var/log/pgbackrest/$FROM-restore.log"
     if [ -f "${detail_rst_log}" ]; then info "See detailed log in the file ${detail_rst_log}"; fi

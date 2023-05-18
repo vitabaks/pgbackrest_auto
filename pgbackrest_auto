@@ -420,10 +420,10 @@ function pg_stop_check(){
     "${PG_BIN_DIR}"/pg_ctl status -D "${PGDATA}" &> /dev/null
     code=$?
     if [[ $code -eq 3 ]]; then
-        info "PostgreSQL instance ${PGPORT} not running"
+        info "PostgreSQL instance not running"
         status=ok
     elif [[ $code -eq 0 ]]; then
-        info "Wait PostgreSQL instance ${PGPORT} stop: wait ${sleep}s"
+        info "Wait PostgreSQL instance stop: wait ${sleep}s"
         sleep ${sleep}s
     elif [[ $code -eq 4 ]]; then
         status=ok
@@ -440,9 +440,9 @@ function pg_stop(){
         info "PostgreSQL stop"
         if "${PG_BIN_DIR}"/pg_ctl stop -D "${PGDATA}" -m fast -w -t 1800 &> /dev/null
         then
-            info "PostgreSQL instance ${PGPORT} stopped"
+            info "PostgreSQL instance stopped"
         else
-            warnmsg "PostgreSQL instance ${PGPORT} stop failed"
+            warnmsg "PostgreSQL instance stop failed"
         fi
     fi
 }

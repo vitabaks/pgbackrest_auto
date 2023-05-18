@@ -467,7 +467,8 @@ function pg_start(){
         info "PostgreSQL is already running"
     else
         info "Starting PostgreSQL on port ${PGPORT}"
-        if ! "${PG_BIN_DIR}"/pg_ctl -o "-p ${PGPORT}" start -D "${PGDATA}" -w -t 1800 &> /dev/null
+        if ! "${PG_BIN_DIR}"/pg_ctl -o "-p ${PGPORT}" start -D "${PGDATA}" -w -t 1800 \
+            > /tmp/pgbackrest_auto_pg_start_${FROM}.log 2>&1
         then
             error "PostgreSQL instance ${PGPORT} start failed"
         else

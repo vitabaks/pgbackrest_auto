@@ -8,7 +8,7 @@
 # for "--report": sendemail
 # Run as user: postgres
 
-ver="1.5.0"
+ver="1.5.1"
 
 # variables for function "sendmail()"
 smtp_server="10.128.64.5:25"
@@ -335,7 +335,7 @@ then
 fi
 
 # checkdb_mode
-if [[ -z $CHECKDB ]]; then 
+if [[ -z $CHECKDB ]]; then
     [[ "${DUMMYDUMP}" = "yes" ]] && CHECKDB_MODE+="dummy-dump "
     [[ "${CHECKSUMS}" = "yes" ]] && CHECKDB_MODE+="checksums "
     [[ "${AMCHECK}" = "yes" ]] && CHECKDB_MODE+="amcheck "
@@ -420,10 +420,10 @@ function pg_stop_check(){
     "${PG_BIN_DIR}"/pg_ctl status -D "${PGDATA}" &> /dev/null
     code=$?
     if [[ $code -eq 3 ]]; then
-        info "PostgreSQL instance ${PGPORT} not running"
+        info "PostgreSQL instance not running"
         status=ok
     elif [[ $code -eq 0 ]]; then
-        info "Wait PostgreSQL instance ${PGPORT} stop: wait ${sleep}s"
+        info "Wait PostgreSQL instance stop: wait ${sleep}s"
         sleep ${sleep}s
     elif [[ $code -eq 4 ]]; then
         status=ok
@@ -440,9 +440,9 @@ function pg_stop(){
         info "PostgreSQL stop"
         if "${PG_BIN_DIR}"/pg_ctl stop -D "${PGDATA}" -m fast -w -t 1800 &> /dev/null
         then
-            info "PostgreSQL instance ${PGPORT} stopped"
+            info "PostgreSQL instance stopped"
         else
-            warnmsg "PostgreSQL instance ${PGPORT} stop failed"
+            warnmsg "PostgreSQL instance stop failed"
         fi
     fi
 }
@@ -461,12 +461,19 @@ function pgisready(){
 
 function pg_start(){
     pg_port_pick
-    info "PostgreSQL start"
-    if ! "${PG_BIN_DIR}"/pg_ctl -o "-p ${PGPORT}" start -D "${PGDATA}" -w -t 1800 &> /dev/null
-    then
-        error "PostgreSQL instance ${PGPORT} start failed"
+    "${PG_BIN_DIR}"/pg_ctl status -D "${PGDATA}" &> /dev/null
+    code=$?
+    if [[ $code -eq 0 ]]; then
+        info "PostgreSQL is already running"
     else
-        pgisready 1> /dev/null
+        info "Starting PostgreSQL on port ${PGPORT}"
+        if ! "${PG_BIN_DIR}"/pg_ctl -o "-p ${PGPORT}" start -D "${PGDATA}" -w -t 1800 \
+            > /tmp/pgbackrest_auto_pg_start_${FROM}.log 2>&1
+        then
+            error "PostgreSQL instance ${PGPORT} start failed"
+        else
+            pgisready 1> /dev/null
+        fi
     fi
 }
 
@@ -650,7 +657,6 @@ STEP=1
 rm -f "${log}"
 touch "${log}"
 exec &> >(tee -a "${log}")
-pg_port_pick
 info "[STEP $((STEP++))]: Starting"
 # Reset values in status file before new restore
 printf "Restore_from_backup=0\nRestoring_from_archive=0\nData_validation=0\nPG_checksums_validation=0\nAmcheck_validation=0\nResult_status=1" > "${status_file}"
@@ -659,13 +665,12 @@ if [[ "$NORESTORE" = "yes" ]]; then
     info "Starting. Run settings: Log: ${log}"
     info "Starting. Run settings: Lock run: ${lock}"
     info "Starting. PostgreSQL version: ${PGVER}"
-    info "Starting. PostgreSQL port: ${PGPORT}"
+    info "Starting. PostgreSQL data directory: ${PGDATA}"
     info "Starting. PostgreSQL Database Validation: ${CHECKDB_MODE}"
     if [[ "${CLEAR}" = "yes" ]]; then info "Starting. Clear Data Directory after restore: ${CLEAR}";fi
     info "[STEP $((STEP++))]: PostgreSQL Starting"
-    if ! pgisready; then pg_start
+    pg_start
     cycle_simple pgisready
-    fi
     sed -i 's/Restore_from_backup=0/Restore_from_backup=1/g' "${status_file}"
     sed -i 's/Restoring_from_archive=0/Restore_from_archive=1/g' "${status_file}"
 else
@@ -674,7 +679,7 @@ else
     info "Starting. Run settings: Log: ${log}"
     info "Starting. Run settings: Lock run: ${lock}"
     info "Starting. PostgreSQL version: ${PGVER}"
-    info "Starting. PostgreSQL port: ${PGPORT}"
+    info "Starting. PostgreSQL data directory: ${PGDATA}"
     info "Starting. PostgreSQL Database Validation: ${CHECKDB_MODE}"
     if [[ "${CLEAR}" = "yes" ]]; then info "Starting. Clear Data Directory after restore: ${CLEAR}";fi
     check_mistake_run

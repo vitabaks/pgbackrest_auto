@@ -566,8 +566,8 @@ function dummy_dump(){
                 info "  starting pg_dump -p ${PGPORT} -h 127.0.0.1 -d $db >> /dev/null"
                 if ! "${PG_BIN_DIR}"/pg_dump -p "${PGPORT}" -h 127.0.0.1 -d "$db" >> /dev/null
                 then
-                    error "Data validation in the database $db - Failed"
                     sed -i 's/Data_validation=1/Data_validation=0/g' "${status_file}"
+                    error "Data validation in the database $db - Failed"
                 else
                     info "Data validation in the database $db - Successful"
                 fi

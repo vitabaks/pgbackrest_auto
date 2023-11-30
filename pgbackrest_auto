@@ -307,15 +307,6 @@ if ! command -v "${PG_BIN_DIR}"/pg_ctl &> /dev/null; then
     exit
 fi
 
-# check if pg_verify_checksums exists (for PostgreSQL version <= 11)
-if [[ "$PGVER" -le "11" && "${CHECKSUMS}" = "yes" ]] || [[ "$PGVER" -le "11" && "${CHECKDB}" = "yes" ]]; then
-    if ! command -v "${PG_BIN_DIR}"/pg_verify_checksums &> /dev/null
-    then
-        warnmsg "pg_verify_checksums command not be found. Please install the postgresql-$PGVER-pg-checksums package"
-        exit
-    fi
-fi
-
 # check if a directory exists
 if [[ ! -d "${PGDATA}" ]]; then
     if ! mkdir -p "${PGDATA}"; then
@@ -602,21 +593,38 @@ function dummy_dump(){
 
 # checksums - check data checksums
 function pg_checksums(){
-    if pgisready 1> /dev/null; then pg_stop cycle_simple pg_stop_check; fi
-    info "pg_checksums: starting data checksums validation"
-    sed -i 's/PG_checksums_validation=0/PG_checksums_validation=1/g' "${status_file}"
-    if [ "$PGVER" -le "11" ]; then
-        pg_checksums_result=$("${PG_BIN_DIR}"/pg_verify_checksums -D "${PGDATA}" | grep "Bad checksums")
+    local pg_checksums_command
+    local pg_checksums_result
+
+    # Determine the checksums command based on PostgreSQL version
+    if [[ "$PGVER" -le "11" ]]; then
+        if command -v "${PG_BIN_DIR}"/pg_checksums &> /dev/null; then
+            pg_checksums_command="pg_checksums"
+        elif command -v "${PG_BIN_DIR}"/pg_verify_checksums &> /dev/null; then
+            pg_checksums_command="pg_verify_checksums"
+        else
+            warnmsg "Checksum command not found. Please install the postgresql-$PGVER-pg-checksums package."
+            exit 1
+        fi
     else
-        pg_checksums_result=$("${PG_BIN_DIR}"/pg_checksums -c -D "${PGDATA}" | grep "Bad checksums")
+        pg_checksums_command="pg_checksums"
     fi
-    if [[ $pg_checksums_result != "Bad checksums:  0" ]]
-    then
-        warnmsg "pg_checksums: data checksums validation result: $pg_checksums_result"
-        sed -i 's/PG_checksums_validation=1/PG_checksums_validation=0/g' "${status_file}"
-        error "pg_checksums: data checksums validation - Failed"
-    else
-        info "pg_checksums: data checksums validation - Successful"
+
+    if pgisready 1> /dev/null; then pg_stop cycle_simple pg_stop_check; fi
+        info "pg_checksums: starting data checksums validation"
+        sed -i 's/PG_checksums_validation=0/PG_checksums_validation=1/g' "${status_file}"
+        if [ "$pg_checksums_command" == "pg_verify_checksums" ]; then
+            pg_checksums_result=$("${PG_BIN_DIR}"/pg_verify_checksums -D "${PGDATA}" | grep "Bad checksums")
+        else
+            pg_checksums_result=$("${PG_BIN_DIR}"/pg_checksums -c -D "${PGDATA}" | grep "Bad checksums")
+        fi
+        if [[ $pg_checksums_result != "Bad checksums:  0" ]]
+        then
+            warnmsg "pg_checksums: data checksums validation result: $pg_checksums_result"
+            sed -i 's/PG_checksums_validation=1/PG_checksums_validation=0/g' "${status_file}"
+            error "pg_checksums: data checksums validation - Failed"
+        else
+            info "pg_checksums: data checksums validation - Successful"
     fi
 }
 

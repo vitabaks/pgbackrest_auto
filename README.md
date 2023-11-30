@@ -78,14 +78,14 @@ Support three types of restore:
 
 Important: Run on the nodes on which you want to restore the backup
 
-Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --backup-host=HOST ] [ --pgver= ] [ --checkdb ] [ --clear ] [ --report ] ]
+Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datname=DATABASE [...] ] [ --recovery-type=( default | immediate | time ) ] [ --recovery-target=TIMELINE  [ --backup-set=SET ] [ --pgver= ] [ --checkdb ] [ --clear ] [ --report ] ]
 
 --from=STANZANAME
         Stanza from which you need to restore from a backup
 
 --to=DATA_DIRECTORY
         PostgreSQL Data directory Path to restore from a backup
-        a PostgreSQL database cluster (PGDATA) will be automatically created (initdb) if it does not exist
+        a PostgreSQL database cluster (PGDATA) will be automatically created if it does not exist
         Example: /bkpdata/rst/app-db
 
 --datname=DATABASE [...]
@@ -112,16 +112,12 @@ Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datnam
                     incr backup: 20220611-000004F_20220614-000003D
         This is the name of SET: 20220611-000004F_20220614-000003D
 
---backup-host=HOST
-        pgBacRest repository ip address (Use SSH Key-Based Authentication)
-        localhost [default]
-
 --pgver=VERSION
         PostgreSQL cluster (instance) version [ optional ]
         by default, the PostgreSQL version will be determined from the pgbackrest info
 
 --dummy-dump
-        Verify that data can be read out. Check with pg_dump >> /dev/null
+        Verify that data can be read out. Check with pg_dump
 
 --checksums
         Check data checksums
@@ -144,15 +140,17 @@ Usage: /usr/bin/pgbackrest_auto --from=STANZANAME --to=DATA_DIRECTORY [ --datnam
 --config=/path/to/pgbackrest.conf
         The path to the custom pgbackrest configuration file [ optional ]
 
---custom-options=""
+--custom-options=
         Costom options for pgBackRest [ optional ]
-	This includes all the options that may also be configured in pgbackrest.conf
-        Example: "--option1=value --option2=value --option3=value"
+        This includes all the options that may also be configured in pgbackrest.conf
+        Example: --option1=value --option2=value --option3=value
         See all available options: https://pgbackrest.org/configuration.html
 
+--process-max=
+        Max processes to use for restore and validate (default 1).
 
 EXAMPLES:
-( example stanza "app-db" , backup-host "localhost" )
+( example stanza "app-db" , backup host "localhost" (default value) )
 
 | Restore last backup:
 

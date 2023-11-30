@@ -622,7 +622,7 @@ function amcheck_exists(){
     else
         extension='amcheck'
     fi
-    if ! psql -v "ON_ERROR_STOP" -p "${PGPORT}" -h 127.0.0.1 -U postgres -d "$db_name" -tAXc "CREATE EXTENSION if not exists $extension" &> /dev/null
+    if ! psql -v "ON_ERROR_STOP" -p "${PGPORT}" -h 127.0.0.1 -U postgres -d "$db" -tAXc "CREATE EXTENSION if not exists $extension" &> /dev/null
     then
         error "CREATE EXTENSION $extension failed"
     fi
@@ -633,19 +633,28 @@ function amcheck(){
     if ! pgisready 1> /dev/null; then pg_start cycle_simple pgisready; fi
     sed -i 's/Amcheck_validation=0/Amcheck_validation=1/g' "${status_file}"
     databases=$(bash -c "psql -p ${PGPORT} -h 127.0.0.1 -tAXc \"select datname from pg_database where not datistemplate\"")
-    for db_name in $databases; do
+    for db in $databases; do
         if pgisready 1> /dev/null; then
             if amcheck_exists; then
-                info "amcheck: verify the logical consistency of the structure of indexes and heap relations in the database $db_name"
-                indexes=$(psql -p "${PGPORT}" -h 127.0.0.1 -d "$db_name" -tXAc "SELECT quote_ident(n.nspname)||'.'||quote_ident(c.relname) FROM pg_index i JOIN pg_opclass op ON i.indclass[0] = op.oid JOIN pg_am am ON op.opcmethod = am.oid JOIN pg_class c ON i.indexrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE am.amname = 'btree' AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND c.relpersistence != 't' AND c.relkind = 'i' AND i.indisready AND i.indisvalid")
-                for index in $indexes; do
-                    # info "amcheck: verify the logical consistency of the structure of index ${index}"
-                    if ! psql -v ON_ERROR_STOP=on -p "${PGPORT}" -h 127.0.0.1 -d "$db_name" -tAXc "select bt_index_parent_check('${index}', heapallindexed => true)" 1> /dev/null
+                info "amcheck: verify the logical consistency of the structure of indexes and heap relations in the database $db"
+                if [[ "$PGVER" -lt '14' ]]; then
+                    # If the PostgreSQL version is less than 14, use the bt_index_parent_check function for each index in single-threaded mode.
+                    indexes=$(psql -p "${PGPORT}" -h 127.0.0.1 -d "$db" -tXAc "SELECT quote_ident(n.nspname)||'.'||quote_ident(c.relname) FROM pg_index i JOIN pg_opclass op ON i.indclass[0] = op.oid JOIN pg_am am ON op.opcmethod = am.oid JOIN pg_class c ON i.indexrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE am.amname = 'btree' AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND c.relpersistence != 't' AND c.relkind = 'i' AND i.indisready AND i.indisvalid")
+                    for index in $indexes; do
+                        if ! psql -v ON_ERROR_STOP=on -p "${PGPORT}" -h 127.0.0.1 -d "$db" -tAXc "select bt_index_parent_check('${index}', heapallindexed => true)" 1> /dev/null
+                        then
+                            sed -i 's/Amcheck_validation=1/Amcheck_validation=0/g' "${status_file}"
+                            error "amcheck: logical validation for index ${index} ( database $db ) - Failed"
+                        fi
+                    done
+                else
+                    # Use pg_amcheck (added in PostgreSQL 14)
+                    if ! "${PG_BIN_DIR}"/pg_amcheck -p "${PGPORT}" -h 127.0.0.1 -d "$db" --parent-check --heapallindexed --progress --jobs="${PROCESS_MAX}"
                     then
-                        warnmsg "amcheck: logical validation for index ${index} ( database $db_name ) - Failed"
                         sed -i 's/Amcheck_validation=1/Amcheck_validation=0/g' "${status_file}"
+                        error "amcheck: logical validation for database $db - Failed"
                     fi
-                done
+                fi
             fi
         fi
     done

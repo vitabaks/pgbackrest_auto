@@ -8,7 +8,7 @@
 # for "--report": sendemail
 # Run as user: postgres
 
-ver="1.5.1"
+ver="1.6.0"
 
 # variables for function "sendmail()"
 smtp_server="10.128.64.5:25"
@@ -586,6 +586,7 @@ function dummy_dump(){
                     # Parallel dump speeds up the process for large databases,
                     # but requires writing data and more disk space for the dump.
                     mkdir -p "${PGDATA}"/dump/
+                    rm -rf "${PGDATA}"/dump/"$db"
                     info "  starting pg_dump -p ${PGPORT} -h 127.0.0.1 -d $db -F d -j ${PROCESS_MAX} -f ${PGDATA}/dump/$db"
                     if ! "${PG_BIN_DIR}"/pg_dump -p "${PGPORT}" -h 127.0.0.1 -d "$db" -F d -j "${PROCESS_MAX}" -f "${PGDATA}"/dump/"$db"
                     then
